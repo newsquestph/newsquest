@@ -1041,3 +1041,195 @@ th {
   }
 
 }
+/* =========================================================
+   RESEARCHER PORTAL - ARTICLE EDITOR BUTTONS
+========================================================= */
+
+/* Add Paragraph / Add Page */
+.add-paragraph-btn,
+.article-add-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  min-height: 44px;
+  padding: 10px 17px;
+
+  border: 1px solid var(--border);
+  border-radius: 10px;
+
+  background: var(--green-light);
+  color: var(--green-dark);
+
+  font-weight: 800;
+  font-size: 0.9rem;
+
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.add-paragraph-btn:hover,
+.article-add-page-btn:hover {
+  background: #cce5d7;
+  border-color: #b8d8c5;
+  transform: translateY(-1px);
+}
+
+.add-paragraph-btn:active,
+.article-add-page-btn:active {
+  transform: translateY(0);
+}
+
+.add-paragraph-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+
+/* Remove Paragraph */
+.remove-paragraph-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 90px;
+  min-height: 40px;
+  padding: 8px 14px;
+
+  border: 1px solid #ead1d1;
+  border-radius: 10px;
+
+  background: #fff5f5;
+  color: var(--danger);
+
+  font-size: 0.85rem;
+  font-weight: 800;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.remove-paragraph-btn:hover {
+  background: #fbe8e8;
+  border-color: #d9b5b5;
+  transform: translateY(-1px);
+}
+
+.remove-paragraph-btn:active {
+  transform: translateY(0);
+}
+
+
+/* Paragraph editor row */
+.paragraph-editor,
+.paragraph-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 12px;
+
+  padding: 14px;
+
+  margin-bottom: 12px;
+
+  border: 1px solid var(--border);
+  border-radius: 14px;
+
+  background: #fafcfb;
+}
+
+
+/* Paragraph number */
+.paragraph-number {
+  width: 32px;
+  height: 32px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 9px;
+
+  background: var(--green-light);
+  color: var(--green-dark);
+
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+
+/* Paragraph textarea */
+.paragraph-input {
+  min-height: 120px;
+  margin: 0;
+  resize: vertical;
+}
+
+
+/* Article editor footer */
+.article-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+
+  gap: 10px;
+
+  margin-top: 15px;
+  padding-top: 15px;
+
+  border-top: 1px solid var(--border);
+}
+
+
+/* Better spacing for paragraph controls */
+.article-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+
+/* Page editor card */
+.article-page {
+  padding: 20px;
+
+  border: 1px solid var(--border);
+  border-radius: 15px;
+
+  background: #ffffff;
+}
+
+
+/* Mobile */
+@media (max-width: 600px) {
+
+  .paragraph-editor,
+  .paragraph-row {
+    grid-template-columns: 1fr;
+  }
+
+  .paragraph-number {
+    width: 30px;
+    height: 30px;
+  }
+
+  .remove-paragraph-btn {
+    width: 100%;
+  }
+
+  .add-paragraph-btn,
+  .article-add-page-btn {
+    width: 100%;
+  }
+
+  .article-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+}
