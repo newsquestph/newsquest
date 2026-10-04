@@ -74,22 +74,29 @@
   }
 
 
-  function escapeAttr(value) {
+function escapeAttr(value) {
 
-    return escapeHTML(value);
+  return escapeHTML(value);
 
-  }
+}
 
 
-  function getSession() {
+function playSound(file) {
+  const audio = new Audio(file);
+  audio.volume = 0.7;
+  audio.play().catch(() => {});
+}
 
-    return JSON.parse(
-      sessionStorage.getItem(
-        "newsquest_session"
-      ) || "null"
-    );
 
-  }
+function getSession() {
+
+  return JSON.parse(
+    sessionStorage.getItem(
+      "newsquest_session"
+    ) || "null"
+  );
+
+}
 
 
   function saveSession(session) {
