@@ -83,8 +83,16 @@ function escapeAttr(value) {
 
 function playSound(file) {
   const audio = new Audio(file);
-  audio.volume = 0.7;
-  audio.play().catch(() => {});
+
+  audio.volume = 1.0;
+
+  audio.play()
+    .then(() => {
+      console.log("Sound played:", file);
+    })
+    .catch(error => {
+      console.log("Sound blocked:", error);
+    });
 }
 
 
