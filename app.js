@@ -131,7 +131,44 @@
     };
 
   }
+function showConfetti() {
+  const container = document.createElement("div");
 
+  container.className = "confetti-container";
+
+  const pieces = 45;
+
+  for (let i = 0; i < pieces; i++) {
+    const piece = document.createElement("span");
+
+    piece.className = "confetti-piece";
+
+    piece.style.left = Math.random() * 100 + "%";
+
+    piece.style.animationDelay =
+      Math.random() * 0.25 + "s";
+
+    piece.style.transform =
+      `rotate(${Math.random() * 360}deg)`;
+
+    piece.style.background =
+      [
+        "#2e7d32",
+        "#66bb6a",
+        "#f9c74f",
+        "#ffffff",
+        "#81c784"
+      ][Math.floor(Math.random() * 5)];
+
+    container.appendChild(piece);
+  }
+
+  document.body.appendChild(container);
+
+  setTimeout(() => {
+    container.remove();
+  }, 1600);
+}
 
   /* =========================================================
      WELCOME
@@ -810,16 +847,18 @@ function renderArticleWithGames(article) {
             }
 
 
-            if (
-              userAnswer ===
-              correctAnswer
-            ) {
+        if (
+  userAnswer ===
+  correctAnswer
+) {
 
-              message.innerHTML =
-                setMessage(
-                  "Correct! Great job.",
-                  "success"
-                );
+  showConfetti();
+
+  message.innerHTML =
+    setMessage(
+      "Correct! Great job.",
+      "success"
+    );
 
 
               input.disabled =
