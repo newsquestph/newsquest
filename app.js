@@ -1692,6 +1692,8 @@ function renderArticleWithGames(article) {
       "click",
       () => {
 
+        playSound("proceed.mp3");
+
         renderQuiz(
           article
         );
