@@ -2046,7 +2046,7 @@
                         class="remove-paragraph-btn"
                         title="Remove paragraph"
                       >
-                        ×
+                        Remove
                       </button>
 
                     `;
