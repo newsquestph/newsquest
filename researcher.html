@@ -6,20 +6,33 @@
   <title>NewsQuest Researcher Portal</title>
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
+
   <header class="site-header">
+
     <a href="index.html" class="brand">
       <span class="brand-mark">NQ</span>
-      <span>NewsQuest Researcher Portal</span>
+
+      <span class="brand-name">
+        NewsQuest
+        <span class="brand-subtitle">Researcher Portal</span>
+      </span>
     </a>
 
     <a href="index.html" class="researcher-link">
       Respondent View
+      <span aria-hidden="true">↗</span>
     </a>
+
   </header>
 
-  <main id="researcher-app" class="app-shell"></main>
+  <main
+    id="researcher-app"
+    class="app-shell researcher-shell"
+  ></main>
 
   <script src="researcher.js"></script>
+
 </body>
 </html>
