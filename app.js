@@ -427,386 +427,450 @@
      NEW ARTICLE FORMAT
   ========================================================= */
 
-  function renderArticleWithGames(article) {
+function renderArticleWithGames(article) {
 
-    const session =
-      getSession();
+  const session = getSession();
 
+  const paragraphs =
+    Array.isArray(article.paragraphs)
+      ? article.paragraphs
+      : [];
 
-    const paragraphs =
-      Array.isArray(
-        article.paragraphs
-      )
-        ? article.paragraphs
-        : [];
+  const games =
+    Array.isArray(article.games)
+      ? article.games
+      : [];
 
+  console.log("NEWSQUEST ARTICLE:", article);
+  console.log("NEWSQUEST GAMES:", games);
 
-    const games =
-      Array.isArray(
-        article.games
-      )
-        ? article.games
-        : [];
+  const totalParagraphs = paragraphs.length;
 
+  /*
+    Convert games into:
 
-    console.log(
-      "NEWSQUEST ARTICLE:",
-      article
-    );
+    paragraph number -> game
 
-    console.log(
-      "NEWSQUEST GAMES:",
-      games
-    );
+    Example:
+    position 2 = game appears after paragraph 2
+  */
 
+  const gameMap = {};
 
-    const totalParagraphs =
-      paragraphs.length;
+  games.forEach(game => {
 
+    const position = Number(game.position);
 
-    /*
-      Convert games into:
+    if (
+      Number.isInteger(position) &&
+      position >= 1 &&
+      position < totalParagraphs
+    ) {
+      gameMap[position] = game;
+    }
 
-      position -> game
-
-      Example:
-
-      position 2
-      = game appears after paragraph 2
-    */
-
-    const gameMap = {};
+  });
 
 
-    games.forEach(
-      game => {
+  document.querySelector("#app").innerHTML = `
 
-        const position =
-          Number(
-            game.position
-          );
+    <div class="topbar">
 
+      <div class="progress-wrap">
 
-        if (
-          Number.isInteger(
-            position
-          ) &&
-          position >= 1 &&
-          position <= totalParagraphs
-        ) {
+        <div class="progress-label">
 
-          gameMap[position] =
-            game;
+          <span>
+            Reading
+          </span>
 
-        }
-
-      }
-    );
-
-
-    const progressPercent =
-      100;
-
-
-    document.querySelector(
-      "#app"
-    ).innerHTML = `
-
-      <div class="topbar">
-
-        <div class="progress-wrap">
-
-          <div class="progress-label">
-
-            <span>
-              Reading
-            </span>
-
-            <span>
-              Article
-            </span>
-
-          </div>
-
-          <div class="progress-track">
-
-            <div
-              class="progress-fill"
-              style="width: ${progressPercent}%"
-            ></div>
-
-          </div>
+          <span>
+            Article
+          </span>
 
         </div>
 
-        <div class="points">
-          +0 points
+        <div class="progress-track">
+
+          <div
+            class="progress-fill"
+            style="width: 100%"
+          ></div>
+
         </div>
 
       </div>
 
+      <div class="points">
+        +0 points
+      </div>
 
-      <article class="article-card card">
-
-        <div class="article-content">
-
-          <div class="eyebrow">
-            Set ${escapeHTML(
-              session?.set || ""
-            )}
-            · Assigned reading
-          </div>
+    </div>
 
 
-          <h2>
-            ${escapeHTML(
-              article.title || ""
-            )}
-          </h2>
+    <article class="article-card card">
 
+      <div class="article-content">
 
-          ${
-            article.image
-              ? `
-                <img
-                  src="${escapeAttr(
-                    article.image
-                  )}"
-                  alt="${escapeAttr(
-                    article.title || "Article image"
-                  )}"
-                  class="article-image"
-                >
-              `
-              : ""
-          }
+        <div class="eyebrow">
 
+          Set ${escapeHTML(
+            session?.set || ""
+          )}
 
-          <div class="article-reading">
-
-            ${paragraphs
-              .map(
-                (
-                  paragraph,
-                  index
-                ) => {
-
-                  const paragraphNumber =
-                    index + 1;
-
-                  const game =
-                    gameMap[
-                      paragraphNumber
-                    ];
-
-
-                  return `
-
-                    <p class="article-body">
-                      ${escapeHTML(
-                        paragraph
-                      )}
-                    </p>
-
-
-                    ${
-                      game
-                        ? `
-                          <div
-                            class="interactive-game card"
-                            data-game-position="${paragraphNumber}"
-                          >
-
-                            ${renderReaderGame(
-                              game
-                            )}
-
-                          </div>
-                        `
-                        : ""
-                    }
-
-                  `;
-
-                }
-              )
-              .join("")}
-
-          </div>
-
-
-          <div class="action-row">
-
-            <button
-              id="begin-quiz"
-              class="primary-btn"
-              type="button"
-            >
-              Proceed to Final Quiz
-            </button>
-
-          </div>
-
-
-          <div
-            id="article-message"
-          ></div>
-
+          · Assigned reading
 
         </div>
 
-      </article>
 
-    `;
-
-
-    /*
-      FINAL QUIZ BUTTON
-    */
-
-    const quizButton =
-      document.querySelector(
-        "#begin-quiz"
-      );
+        <h2>
+          ${escapeHTML(
+            article.title || ""
+          )}
+        </h2>
 
 
-    if (quizButton) {
+        ${
+          article.image
+            ? `
+              <img
+                src="${escapeAttr(article.image)}"
+                alt="${escapeAttr(
+                  article.title || "Article image"
+                )}"
+                class="article-image"
+              >
+            `
+            : ""
+        }
 
-      quizButton.addEventListener(
+
+        <div class="article-reading">
+
+          ${paragraphs
+            .map((paragraph, index) => {
+
+              const paragraphNumber =
+                index + 1;
+
+              const game =
+                gameMap[paragraphNumber];
+
+
+              /*
+                Anything after a game is hidden
+                until that game is answered correctly.
+              */
+
+              const hasPreviousGame =
+                paragraphs
+                  .slice(
+                    0,
+                    paragraphNumber - 1
+                  )
+                  .some(
+                    (_, previousIndex) =>
+                      gameMap[
+                        previousIndex + 1
+                      ]
+                  );
+
+
+              const shouldBeHidden =
+                hasPreviousGame;
+
+
+              return `
+
+                <div
+                  class="article-step"
+                  data-paragraph="${paragraphNumber}"
+                  ${
+                    shouldBeHidden
+                      ? 'style="display:none;"'
+                      : ""
+                  }
+                >
+
+                  <p class="article-body">
+
+                    ${escapeHTML(
+                      paragraph
+                    )}
+
+                  </p>
+
+
+                  ${
+                    game
+                      ? `
+
+                        <div
+                          class="interactive-game card"
+                          data-game-position="${paragraphNumber}"
+                        >
+
+                          ${renderReaderGame(game)}
+
+                        </div>
+
+                      `
+                      : ""
+                  }
+
+                </div>
+
+              `;
+
+            })
+            .join("")}
+
+        </div>
+
+
+        <div
+          id="final-reading-action"
+          class="action-row"
+          style="${
+            games.length > 0
+              ? "display:none;"
+              : ""
+          }"
+        >
+
+          <button
+            id="begin-quiz"
+            class="primary-btn"
+            type="button"
+          >
+
+            Proceed to Final Quiz
+
+          </button>
+
+        </div>
+
+
+        <div
+          id="article-message"
+        ></div>
+
+
+      </div>
+
+    </article>
+
+  `;
+
+
+  /*
+    GAME BUTTONS
+  */
+
+  document
+    .querySelectorAll(".interactive-game")
+    .forEach(gameContainer => {
+
+      const position =
+        Number(
+          gameContainer.dataset.gamePosition
+        );
+
+
+      const game =
+        gameMap[position];
+
+
+      if (!game) {
+        return;
+      }
+
+
+      const input =
+        gameContainer.querySelector(
+          ".game-answer"
+        );
+
+
+      const button =
+        gameContainer.querySelector(
+          ".game-submit"
+        );
+
+
+      const message =
+        gameContainer.querySelector(
+          ".game-message"
+        );
+
+
+      if (
+        !input ||
+        !button ||
+        !message
+      ) {
+        return;
+      }
+
+
+      button.addEventListener(
         "click",
         () => {
 
-          renderQuiz(
-            article
-          );
-
-        }
-      );
-
-    }
+          const userAnswer =
+            input.value
+              .trim()
+              .toLowerCase();
 
 
-    /*
-      GAME BUTTONS
-    */
-
-    document
-      .querySelectorAll(
-        ".interactive-game"
-      )
-      .forEach(
-        gameContainer => {
-
-          const position =
-            Number(
-              gameContainer.dataset
-                .gamePosition
-            );
+          const correctAnswer =
+            String(
+              game.answer || ""
+            )
+              .trim()
+              .toLowerCase();
 
 
-          const game =
-            gameMap[position];
+          if (!userAnswer) {
 
+            message.innerHTML =
+              setMessage(
+                "Please enter your answer first."
+              );
 
-          if (!game) {
             return;
+
           }
-
-
-          const input =
-            gameContainer.querySelector(
-              ".game-answer"
-            );
-
-
-          const button =
-            gameContainer.querySelector(
-              ".game-submit"
-            );
-
-
-          const message =
-            gameContainer.querySelector(
-              ".game-message"
-            );
 
 
           if (
-            !input ||
-            !button ||
-            !message
+            userAnswer ===
+            correctAnswer
           ) {
 
-            return;
-
-          }
-
-
-          button.addEventListener(
-            "click",
-            () => {
-
-              const userAnswer =
-                input.value
-                  .trim()
-                  .toLowerCase();
+            message.innerHTML =
+              setMessage(
+                "Correct! Great job.",
+                "success"
+              );
 
 
-              const correctAnswer =
-                String(
-                  game.answer || ""
+            input.disabled = true;
+            button.disabled = true;
+
+
+            /*
+              Reveal the paragraph immediately
+              AFTER this game.
+            */
+
+            const nextParagraph =
+              document.querySelector(
+                `.article-step[data-paragraph="${position + 1}"]`
+              );
+
+
+            if (nextParagraph) {
+
+              nextParagraph.style.display =
+                "block";
+
+              nextParagraph.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+              });
+
+            }
+
+
+            /*
+              Check if there are still
+              unanswered games.
+            */
+
+            const remainingGames =
+              Array.from(
+                document.querySelectorAll(
+                  ".interactive-game"
                 )
-                  .trim()
-                  .toLowerCase();
+              ).some(
+                container => {
 
+                  const gameInput =
+                    container.querySelector(
+                      ".game-answer"
+                    );
 
-              if (!userAnswer) {
-
-                message.innerHTML =
-                  setMessage(
-                    "Please enter your answer first."
+                  return (
+                    gameInput &&
+                    !gameInput.disabled
                   );
 
-                return;
-
-              }
-
-
-              if (
-                userAnswer ===
-                correctAnswer
-              ) {
-
-                message.innerHTML =
-                  setMessage(
-                    "Correct! Great job.",
-                    "success"
-                  );
+                }
+              );
 
 
-                input.disabled =
-                  true;
+            /*
+              If there are no more games,
+              show Final Quiz button.
+            */
 
-                button.disabled =
-                  true;
+            if (!remainingGames) {
+
+              const finalAction =
+                document.querySelector(
+                  "#final-reading-action"
+                );
 
 
-              } else {
+              if (finalAction) {
 
-                message.innerHTML =
-                  setMessage(
-                    "Not quite. Try again."
-                  );
+                finalAction.style.display =
+                  "flex";
 
               }
 
             }
-          );
+
+          } else {
+
+            message.innerHTML =
+              setMessage(
+                "Not quite. Try again."
+              );
+
+          }
 
         }
       );
 
+    });
+
+
+  /*
+    FINAL QUIZ BUTTON
+  */
+
+  const quizButton =
+    document.querySelector(
+      "#begin-quiz"
+    );
+
+
+  if (quizButton) {
+
+    quizButton.addEventListener(
+      "click",
+      () => {
+
+        renderQuiz(article);
+
+      }
+    );
+
   }
+
+}
 
 
   /* =========================================================
