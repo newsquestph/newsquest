@@ -17,6 +17,7 @@
       orderBy,
       limit,
       setDoc,
+      updateDoc,
       serverTimestamp,
       writeBatch
     }
@@ -250,7 +251,7 @@
   // =========================================================
 
   function escapeHTML(value) {
-    return String(value)
+    return String(value ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
@@ -375,9 +376,7 @@
 
     try {
       message.innerHTML =
-        noticeBox(
-          "Signing in..."
-        );
+        noticeBox("Signing in...");
 
       await signInWithEmailAndPassword(
         auth,
@@ -449,6 +448,7 @@
     let changed = false;
 
     if (articleSnapshot.empty) {
+
       Object.values(
         DEFAULT_ARTICLES
       ).forEach(article => {
@@ -467,6 +467,7 @@
     }
 
     if (codeSnapshot.empty) {
+
       const defaults = [
         ["SET1-001", 1, "article1"],
         ["SET1-002", 1, "article1"],
@@ -516,6 +517,7 @@
   async function renderDashboard(
     activeTab = "records"
   ) {
+
     const user =
       auth.currentUser;
 
@@ -527,15 +529,20 @@
     let researcher = false;
 
     try {
+
       researcher =
         await isResearcher(
           user
         );
+
     } catch (error) {
+
       console.error(error);
+
     }
 
     if (!researcher) {
+
       document.querySelector(
         "#researcher-app"
       ).innerHTML = `
@@ -584,9 +591,11 @@
     }
 
     try {
+
       await seedInitialData();
 
     } catch (error) {
+
       console.error(error);
 
       document.querySelector(
@@ -690,18 +699,14 @@
     `;
 
     document
-      .querySelector(
-        "#logout"
-      )
+      .querySelector("#logout")
       .addEventListener(
         "click",
         () => signOut(auth)
       );
 
     document
-      .querySelectorAll(
-        "[data-tab]"
-      )
+      .querySelectorAll("[data-tab]")
       .forEach(button => {
 
         button.classList.toggle(
@@ -757,6 +762,7 @@
   // =========================================================
 
   async function renderRecords() {
+
     const container =
       document.querySelector(
         "#dashboard-content"
@@ -781,6 +787,7 @@
     `;
 
     try {
+
       const snapshot =
         await getDocs(
           collection(
@@ -944,6 +951,7 @@
       `;
 
     } catch (error) {
+
       console.error(error);
 
       container.innerHTML = `
@@ -962,1134 +970,809 @@
     }
   }
 
-// =========================================================
-// ARTICLE EDITOR
-// =========================================================
+  // =========================================================
+  // ARTICLE BUILDER
+  // =========================================================
 
-async function renderEditor() {
-  const container = document.querySelector("#dashboard-content");
+  async function renderEditor() {
 
-  if (!container) return;
-
-  container.innerHTML = `
-    <section class="editor-workspace">
-
-      <div class="editor-intro">
-        <div class="editor-eyebrow">Editorial Workspace</div>
-
-        <h2>Article Builder</h2>
-
-        <p>
-          Build your article page by page. Each page can contain up to
-          <strong>5 paragraphs</strong>.
-        </p>
-
-        <div class="editor-rules">
-          <span>Minimum 2 pages</span>
-          <span>Maximum 5 paragraphs per page</span>
-        </div>
-      </div>
-
-      <div id="article-editor-list"></div>
-
-    </section>
-  `;
-
-  const articleList =
-    document.querySelector("#article-editor-list");
-
-  /*
-   * =========================================================
-   * LOAD ARTICLES
-   * =========================================================
-   */
-
-  const articlesSnapshot = await getDocs(
-    collection(db, "articles")
-  );
-
-  const articles = [];
-
-  articlesSnapshot.forEach((docSnap) => {
-    articles.push({
-      id: docSnap.id,
-      ...docSnap.data()
-    });
-  });
-
-  if (!articles.length) {
-    articleList.innerHTML = `
-      <div class="empty-editor-state">
-        <p>No articles found.</p>
-      </div>
-    `;
-
-    return;
-  }
-
-  /*
-   * =========================================================
-   * CONVERT OLD ARTICLE DATA TO PAGES
-   * =========================================================
-   */
-
-  function normalizePages(article) {
-
-    /*
-     * New page structure
-     */
-    if (
-      Array.isArray(article.pages) &&
-      article.pages.length >= 2
-    ) {
-      return article.pages.map((page, index) => ({
-        pageNumber: index + 1,
-        paragraphs: Array.isArray(page.paragraphs)
-          ? page.paragraphs
-              .map(p => String(p || ""))
-              .slice(0, 5)
-          : []
-      }));
-    }
-
-    /*
-     * Old paragraph structure
-     */
-    let oldParagraphs = [];
-
-    if (Array.isArray(article.paragraphs)) {
-
-      oldParagraphs = article.paragraphs
-        .map(p => String(p || ""));
-
-    } else if (Array.isArray(article.sections)) {
-
-      oldParagraphs = article.sections.flatMap(section => {
-
-        if (!Array.isArray(section.paragraphs)) {
-          return [];
-        }
-
-        return section.paragraphs
-          .map(p => String(p || ""));
-      });
-    }
-
-    /*
-     * Convert old paragraphs into
-     * maximum 5 paragraphs per page.
-     */
-    const pages = [];
-
-    for (let i = 0; i < oldParagraphs.length; i += 5) {
-
-      pages.push({
-        pageNumber: pages.length + 1,
-        paragraphs: oldParagraphs.slice(i, i + 5)
-      });
-    }
-
-    /*
-     * Always maintain minimum 2 pages.
-     */
-    while (pages.length < 2) {
-
-      pages.push({
-        pageNumber: pages.length + 1,
-        paragraphs: []
-      });
-    }
-
-    return pages;
-  }
-
-  /*
-   * =========================================================
-   * RENDER EACH ARTICLE
-   * =========================================================
-   */
-
-  articles.forEach((article) => {
-
-    const pages = normalizePages(article);
-
-    const articleCard =
-      document.createElement("article");
-
-    articleCard.className =
-      "article-editor-card";
-
-    articleCard.dataset.articleId =
-      article.id;
-
-    articleCard.innerHTML = `
-      <div class="article-editor-heading">
-
-        <div>
-          <span class="editor-label">
-            ARTICLE
-          </span>
-
-          <h3>
-            ${escapeHtml(
-              article.title || "Untitled Article"
-            )}
-          </h3>
-        </div>
-
-        <span class="article-page-count">
-          ${pages.length} pages
-        </span>
-
-      </div>
-
-      <div class="article-pages"></div>
-
-      <div class="article-card-footer">
-
-        <button
-          type="button"
-          class="add-page-btn article-add-page-btn"
-        >
-          <span>＋</span>
-          Add Page
-        </button>
-
-        <button
-          type="button"
-          class="save-article-btn"
-        >
-          Save Article
-        </button>
-
-      </div>
-
-      <div class="article-save-status"></div>
-    `;
-
-    const pagesContainer =
-      articleCard.querySelector(
-        ".article-pages"
+    const container =
+      document.querySelector(
+        "#dashboard-content"
       );
 
-    const pageCountLabel =
-      articleCard.querySelector(
-        ".article-page-count"
-      );
+    if (!container) {
+      return;
+    }
 
-    const saveStatus =
-      articleCard.querySelector(
-        ".article-save-status"
-      );
+    container.innerHTML = `
+      <section class="editor-workspace">
 
-    /*
-     * =========================================================
-     * RENDER PAGES
-     * =========================================================
-     */
+        <div class="editor-intro">
 
-    function renderPages() {
-
-      pagesContainer.innerHTML = "";
-
-      pages.forEach((page, pageIndex) => {
-
-        page.pageNumber =
-          pageIndex + 1;
-
-        const pageCard =
-          document.createElement("section");
-
-        pageCard.className =
-          "article-page-card";
-
-        pageCard.dataset.pageIndex =
-          pageIndex;
-
-        pageCard.innerHTML = `
-          <div class="page-card-header">
-
-            <div>
-              <span class="page-kicker">
-                ARTICLE PAGE
-              </span>
-
-              <h4>
-                Page ${pageIndex + 1}
-              </h4>
-            </div>
-
-            ${
-              pages.length > 2
-                ? `
-                  <button
-                    type="button"
-                    class="remove-page-btn"
-                  >
-                    Remove Page
-                  </button>
-                `
-                : ""
-            }
-
+          <div class="editor-eyebrow">
+            Editorial Workspace
           </div>
 
-          <div class="page-paragraphs"></div>
+          <h2>
+            Article Builder
+          </h2>
 
-          <div class="page-card-footer">
+          <p>
+            Build your article page by page.
+            Each page can contain up to
+            <strong>5 paragraphs</strong>.
+          </p>
 
-            <button
-              type="button"
-              class="add-paragraph-btn"
-              ${
-                page.paragraphs.length >= 5
-                  ? "disabled"
-                  : ""
-              }
-            >
-              <span>＋</span>
-              Add Paragraph
-            </button>
+          <div class="editor-rules">
+            <span>
+              Minimum 2 pages
+            </span>
 
-            ${
-              page.paragraphs.length >= 5
-                ? `
-                  <small class="paragraph-limit">
-                    Maximum of 5 paragraphs on this page.
-                  </small>
-                `
-                : ""
-            }
+            <span>
+              Maximum 5 paragraphs per page
+            </span>
+          </div>
+
+        </div>
+
+        <div id="article-editor-list">
+
+          <div class="notice">
+            Loading articles...
+          </div>
+
+        </div>
+
+      </section>
+    `;
+
+    const articleList =
+      document.querySelector(
+        "#article-editor-list"
+      );
+
+    try {
+
+      // =====================================================
+      // LOAD ARTICLES
+      // =====================================================
+
+      const articlesSnapshot =
+        await getDocs(
+          collection(
+            db,
+            "articles"
+          )
+        );
+
+      const articles = [];
+
+      articlesSnapshot.forEach(
+        docSnap => {
+
+          articles.push({
+            id: docSnap.id,
+            ...docSnap.data()
+          });
+
+        }
+      );
+
+      if (!articles.length) {
+
+        articleList.innerHTML = `
+          <div class="empty-editor-state">
+
+            <p>
+              No articles found.
+            </p>
 
           </div>
         `;
 
-        const paragraphContainer =
-          pageCard.querySelector(
-            ".page-paragraphs"
-          );
+        return;
+      }
 
-        /*
-         * =====================================================
-         * RENDER PARAGRAPHS
-         * =====================================================
-         */
+      // =====================================================
+      // NORMALIZE PAGES
+      // =====================================================
 
-        page.paragraphs.forEach(
-          (paragraph, paragraphIndex) => {
+      function normalizePages(article) {
 
-            const paragraphRow =
-              document.createElement("div");
+        // New page structure
+        if (
+          Array.isArray(article.pages) &&
+          article.pages.length >= 2
+        ) {
 
-            paragraphRow.className =
-              "article-paragraph";
+          return article.pages.map(
+            (page, index) => ({
 
-            paragraphRow.innerHTML = `
-              <div class="paragraph-number">
-                ${paragraphIndex + 1}
-              </div>
+              pageNumber:
+                index + 1,
 
-              <textarea
-                class="paragraph-input"
-                rows="5"
-                placeholder="Write paragraph ${
-                  paragraphIndex + 1
-                }..."
-              ></textarea>
+              paragraphs:
+                Array.isArray(
+                  page.paragraphs
+                )
+                  ? page.paragraphs
+                      .map(
+                        paragraph =>
+                          String(
+                            paragraph ?? ""
+                          )
+                      )
+                      .slice(0, 5)
 
-              <button
-                type="button"
-                class="remove-paragraph-btn"
-                title="Remove paragraph"
-              >
-                ×
-              </button>
-            `;
+                  : []
 
-            const textarea =
-              paragraphRow.querySelector(
-                ".paragraph-input"
-              );
-
-            textarea.value =
-              paragraph;
-
-            textarea.addEventListener(
-              "input",
-              () => {
-
-                page.paragraphs[
-                  paragraphIndex
-                ] = textarea.value;
-
-              }
-            );
-
-            paragraphRow
-              .querySelector(
-                ".remove-paragraph-btn"
-              )
-              .addEventListener(
-                "click",
-                () => {
-
-                  page.paragraphs.splice(
-                    paragraphIndex,
-                    1
-                  );
-
-                  renderPages();
-                }
-              );
-
-            paragraphContainer.appendChild(
-              paragraphRow
-            );
-          }
-        );
-
-        /*
-         * =====================================================
-         * ADD PARAGRAPH
-         * =====================================================
-         */
-
-        const addParagraphButton =
-          pageCard.querySelector(
-            ".add-paragraph-btn"
-          );
-
-        addParagraphButton.addEventListener(
-          "click",
-          () => {
-
-            if (
-              page.paragraphs.length >= 5
-            ) {
-              return;
-            }
-
-            page.paragraphs.push("");
-
-            renderPages();
-          }
-        );
-
-        /*
-         * =====================================================
-         * REMOVE PAGE
-         * =====================================================
-         */
-
-        const removePageButton =
-          pageCard.querySelector(
-            ".remove-page-btn"
-          );
-
-        if (removePageButton) {
-
-          removePageButton.addEventListener(
-            "click",
-            () => {
-
-              if (pages.length <= 2) {
-
-                alert(
-                  "An article must have at least 2 pages."
-                );
-
-                return;
-              }
-
-              const confirmed =
-                confirm(
-                  `Remove Page ${
-                    pageIndex + 1
-                  }?`
-                );
-
-              if (!confirmed) {
-                return;
-              }
-
-              pages.splice(
-                pageIndex,
-                1
-              );
-
-              pages.forEach(
-                (item, index) => {
-                  item.pageNumber =
-                    index + 1;
-                }
-              );
-
-              renderPages();
-            }
+            })
           );
         }
 
-        pagesContainer.appendChild(
-          pageCard
-        );
-      });
+        // Old paragraph structure
+        let oldParagraphs = [];
 
-      pageCountLabel.textContent =
-        `${pages.length} pages`;
-    }
+        if (
+          Array.isArray(
+            article.paragraphs
+          )
+        ) {
 
-    /*
-     * =========================================================
-     * ADD PAGE
-     * =========================================================
-     */
+          oldParagraphs =
+            article.paragraphs.map(
+              paragraph =>
+                String(
+                  paragraph ?? ""
+                )
+            );
 
-    articleCard
-      .querySelector(
-        ".article-add-page-btn"
-      )
-      .addEventListener(
-        "click",
-        () => {
+        } else if (
+          Array.isArray(
+            article.sections
+          )
+        ) {
+
+          oldParagraphs =
+            article.sections.flatMap(
+              section => {
+
+                if (
+                  !Array.isArray(
+                    section.paragraphs
+                  )
+                ) {
+                  return [];
+                }
+
+                return section.paragraphs.map(
+                  paragraph =>
+                    String(
+                      paragraph ?? ""
+                    )
+                );
+
+              }
+            );
+        }
+
+        // Convert old paragraphs
+        // into maximum 5 per page.
+        const pages = [];
+
+        for (
+          let i = 0;
+          i < oldParagraphs.length;
+          i += 5
+        ) {
 
           pages.push({
+
+            pageNumber:
+              pages.length + 1,
+
+            paragraphs:
+              oldParagraphs.slice(
+                i,
+                i + 5
+              )
+
+          });
+
+        }
+
+        // Always keep at least 2 pages.
+        while (
+          pages.length < 2
+        ) {
+
+          pages.push({
+
             pageNumber:
               pages.length + 1,
 
             paragraphs: []
+
           });
 
-          renderPages();
         }
-      );
 
-    /*
-     * =========================================================
-     * SAVE ARTICLE
-     * =========================================================
-     */
+        return pages;
+      }
 
-    articleCard
-      .querySelector(
-        ".save-article-btn"
-      )
-      .addEventListener(
-        "click",
-        async () => {
+      // =====================================================
+      // RENDER ARTICLES
+      // =====================================================
 
-          try {
+      articles.forEach(
+        article => {
 
-            /*
-             * Clean paragraphs but preserve
-             * empty pages.
-             */
-            const cleanedPages =
-              pages.map(
-                (page, index) => ({
+          const pages =
+            normalizePages(
+              article
+            );
 
-                  pageNumber:
-                    index + 1,
+          const articleCard =
+            document.createElement(
+              "article"
+            );
 
-                  paragraphs:
-                    page.paragraphs
-                      .map(
-                        paragraph =>
-                          String(
-                            paragraph || ""
-                          ).trim()
+          articleCard.className =
+            "article-editor-card";
+
+          articleCard.dataset.articleId =
+            article.id;
+
+          articleCard.innerHTML = `
+            <div class="article-editor-heading">
+
+              <div>
+
+                <span class="editor-label">
+                  ${escapeHTML(
+                    articleName(
+                      article.id
+                    )
+                  )}
+                </span>
+
+                <h3>
+                  ${escapeHTML(
+                    article.title ||
+                    "Untitled Article"
+                  )}
+                </h3>
+
+              </div>
+
+              <span class="article-page-count">
+                ${pages.length} pages
+              </span>
+
+            </div>
+
+            <div class="article-pages"></div>
+
+            <div class="article-card-footer">
+
+              <button
+                type="button"
+                class="add-page-btn article-add-page-btn"
+              >
+                <span>＋</span>
+                Add Page
+              </button>
+
+              <button
+                type="button"
+                class="save-article-btn primary-btn"
+              >
+                Save Article
+              </button>
+
+            </div>
+
+            <div class="article-save-status"></div>
+          `;
+
+          const pagesContainer =
+            articleCard.querySelector(
+              ".article-pages"
+            );
+
+          const pageCountLabel =
+            articleCard.querySelector(
+              ".article-page-count"
+            );
+
+          const saveStatus =
+            articleCard.querySelector(
+              ".article-save-status"
+            );
+
+          // =================================================
+          // RENDER PAGES
+          // =================================================
+
+          function renderPages() {
+
+            pagesContainer.innerHTML = "";
+
+            pages.forEach(
+              (page, pageIndex) => {
+
+                page.pageNumber =
+                  pageIndex + 1;
+
+                const pageCard =
+                  document.createElement(
+                    "section"
+                  );
+
+                pageCard.className =
+                  "article-page-card";
+
+                pageCard.dataset.pageIndex =
+                  pageIndex;
+
+                pageCard.innerHTML = `
+                  <div class="page-card-header">
+
+                    <div>
+
+                      <span class="page-kicker">
+                        ARTICLE PAGE
+                      </span>
+
+                      <h4>
+                        Page ${
+                          pageIndex + 1
+                        }
+                      </h4>
+
+                    </div>
+
+                    ${
+                      pages.length > 2
+                        ? `
+                          <button
+                            type="button"
+                            class="remove-page-btn"
+                          >
+                            Remove Page
+                          </button>
+                        `
+                        : ""
+                    }
+
+                  </div>
+
+                  <div class="page-paragraphs"></div>
+
+                  <div class="page-card-footer">
+
+                    <button
+                      type="button"
+                      class="add-paragraph-btn"
+                      ${
+                        page.paragraphs.length >= 5
+                          ? "disabled"
+                          : ""
+                      }
+                    >
+                      <span>＋</span>
+                      Add Paragraph
+                    </button>
+
+                    ${
+                      page.paragraphs.length >= 5
+                        ? `
+                          <small class="paragraph-limit">
+                            Maximum of 5 paragraphs on this page.
+                          </small>
+                        `
+                        : ""
+                    }
+
+                  </div>
+                `;
+
+                const paragraphContainer =
+                  pageCard.querySelector(
+                    ".page-paragraphs"
+                  );
+
+                // =========================================
+                // PARAGRAPHS
+                // =========================================
+
+                page.paragraphs.forEach(
+                  (
+                    paragraph,
+                    paragraphIndex
+                  ) => {
+
+                    const paragraphRow =
+                      document.createElement(
+                        "div"
+                      );
+
+                    paragraphRow.className =
+                      "article-paragraph";
+
+                    paragraphRow.innerHTML = `
+                      <div class="paragraph-number">
+                        ${
+                          paragraphIndex + 1
+                        }
+                      </div>
+
+                      <textarea
+                        class="paragraph-input"
+                        rows="5"
+                        placeholder="Write paragraph ${
+                          paragraphIndex + 1
+                        }..."
+                      ></textarea>
+
+                      <button
+                        type="button"
+                        class="remove-paragraph-btn"
+                        title="Remove paragraph"
+                      >
+                        ×
+                      </button>
+                    `;
+
+                    const textarea =
+                      paragraphRow.querySelector(
+                        ".paragraph-input"
+                      );
+
+                    textarea.value =
+                      paragraph;
+
+                    textarea.addEventListener(
+                      "input",
+                      () => {
+
+                        page.paragraphs[
+                          paragraphIndex
+                        ] =
+                          textarea.value;
+
+                      }
+                    );
+
+                    paragraphRow
+                      .querySelector(
+                        ".remove-paragraph-btn"
                       )
-                      .filter(Boolean)
+                      .addEventListener(
+                        "click",
+                        () => {
 
-                })
-              );
+                          page.paragraphs.splice(
+                            paragraphIndex,
+                            1
+                          );
 
-            /*
-             * At least one paragraph
-             * must exist somewhere.
-             */
-            const totalParagraphs =
-              cleanedPages.reduce(
-                (
-                  total,
-                  page
-                ) =>
-                  total +
-                  page.paragraphs.length,
-                0
-              );
+                          renderPages();
 
-            if (totalParagraphs === 0) {
+                        }
+                      );
 
-              alert(
-                "Please add at least one paragraph before saving."
-              );
+                    paragraphContainer.appendChild(
+                      paragraphRow
+                    );
 
-              return;
-            }
+                  }
+                );
 
-            /*
-             * Flatten pages for compatibility
-             * with the existing reader.
-             */
-            const flattenedParagraphs =
-              cleanedPages.flatMap(
-                page =>
-                  page.paragraphs
-              );
+                // =========================================
+                // ADD PARAGRAPH
+                // =========================================
 
-            await updateDoc(
-              doc(
-                db,
-                "articles",
-                article.id
-              ),
-              {
+                const addParagraphButton =
+                  pageCard.querySelector(
+                    ".add-paragraph-btn"
+                  );
 
-                pages:
-                  cleanedPages,
+                addParagraphButton.addEventListener(
+                  "click",
+                  () => {
 
-                paragraphs:
-                  flattenedParagraphs,
+                    if (
+                      page.paragraphs.length >= 5
+                    ) {
+                      return;
+                    }
 
-                body:
-                  flattenedParagraphs.join(
-                    "\n\n"
-                  ),
+                    page.paragraphs.push("");
 
-                updatedAt:
-                  serverTimestamp()
+                    renderPages();
+
+                  }
+                );
+
+                // =========================================
+                // REMOVE PAGE
+                // =========================================
+
+                const removePageButton =
+                  pageCard.querySelector(
+                    ".remove-page-btn"
+                  );
+
+                if (
+                  removePageButton
+                ) {
+
+                  removePageButton.addEventListener(
+                    "click",
+                    () => {
+
+                      if (
+                        pages.length <= 2
+                      ) {
+
+                        alert(
+                          "An article must have at least 2 pages."
+                        );
+
+                        return;
+                      }
+
+                      const confirmed =
+                        confirm(
+                          `Remove Page ${
+                            pageIndex + 1
+                          }?`
+                        );
+
+                      if (!confirmed) {
+                        return;
+                      }
+
+                      pages.splice(
+                        pageIndex,
+                        1
+                      );
+
+                      pages.forEach(
+                        (
+                          item,
+                          index
+                        ) => {
+
+                          item.pageNumber =
+                            index + 1;
+
+                        }
+                      );
+
+                      renderPages();
+
+                    }
+                  );
+
+                }
+
+                pagesContainer.appendChild(
+                  pageCard
+                );
 
               }
             );
 
-            saveStatus.innerHTML = `
-              <div class="save-success">
-                Article saved successfully.
-              </div>
-            `;
+            pageCountLabel.textContent =
+              `${pages.length} pages`;
+          }
 
-            setTimeout(
+          // =================================================
+          // ADD PAGE
+          // =================================================
+
+          articleCard
+            .querySelector(
+              ".article-add-page-btn"
+            )
+            .addEventListener(
+              "click",
               () => {
-                saveStatus.innerHTML = "";
-              },
-              3000
+
+                pages.push({
+
+                  pageNumber:
+                    pages.length + 1,
+
+                  paragraphs: []
+
+                });
+
+                renderPages();
+
+              }
             );
 
-          } catch (error) {
+          // =================================================
+          // SAVE ARTICLE
+          // =================================================
 
-            console.error(
-              "Failed to save article:",
-              error
+          articleCard
+            .querySelector(
+              ".save-article-btn"
+            )
+            .addEventListener(
+              "click",
+              async () => {
+
+                try {
+
+                  saveStatus.innerHTML = `
+                    <div class="notice">
+                      Saving article...
+                    </div>
+                  `;
+
+                  // -----------------------------------------
+                  // Clean pages
+                  // -----------------------------------------
+
+                  const cleanedPages =
+                    pages.map(
+                      (
+                        page,
+                        index
+                      ) => ({
+
+                        pageNumber:
+                          index + 1,
+
+                        paragraphs:
+                          page.paragraphs
+                            .map(
+                              paragraph =>
+                                String(
+                                  paragraph ?? ""
+                                ).trim()
+                            )
+
+                      })
+                    );
+
+                  // -----------------------------------------
+                  // Check at least one paragraph
+                  // -----------------------------------------
+
+                  const totalParagraphs =
+                    cleanedPages.reduce(
+                      (
+                        total,
+                        page
+                      ) =>
+                        total +
+                        page.paragraphs.filter(
+                          paragraph =>
+                            paragraph.length > 0
+                        ).length,
+                      0
+                    );
+
+                  if (
+                    totalParagraphs === 0
+                  ) {
+
+                    saveStatus.innerHTML =
+                      errorBox(
+                        "Please add at least one paragraph before saving."
+                      );
+
+                    return;
+                  }
+
+                  // -----------------------------------------
+                  // Flatten pages
+                  // -----------------------------------------
+
+                  const flattenedParagraphs =
+                    cleanedPages.flatMap(
+                      page =>
+                        page.paragraphs.filter(
+                          paragraph =>
+                            paragraph.length > 0
+                        )
+                    );
+
+                  // -----------------------------------------
+                  // SAVE
+                  // -----------------------------------------
+
+                  await updateDoc(
+                    doc(
+                      db,
+                      "articles",
+                      article.id
+                    ),
+                    {
+
+                      pages:
+                        cleanedPages,
+
+                      paragraphs:
+                        flattenedParagraphs,
+
+                      body:
+                        flattenedParagraphs.join(
+                          "\n\n"
+                        ),
+
+                      updatedAt:
+                        serverTimestamp()
+
+                    }
+                  );
+
+                  saveStatus.innerHTML = `
+                    <div class="save-success">
+                      ✓ Article saved successfully.
+                    </div>
+                  `;
+
+                  setTimeout(
+                    () => {
+
+                      saveStatus.innerHTML = "";
+
+                    },
+                    3000
+                  );
+
+                } catch (error) {
+
+                  console.error(
+                    "Failed to save article:",
+                    error
+                  );
+
+                  saveStatus.innerHTML =
+                    errorBox(
+                      "Failed to save article. Please try again."
+                    );
+
+                }
+
+              }
             );
 
-            alert(
-              "Failed to save article. Please try again."
-            );
-          }
+          articleList.appendChild(
+            articleCard
+          );
+
+          // Initial page render
+          renderPages();
+
         }
       );
 
-    /*
-     * Add completed article card
-     */
-    articleList.appendChild(
-      articleCard
-    );
+    } catch (error) {
 
-    /*
-     * Initial render
-     */
-    renderPages();
-  });
-}
-/* =========================================================
-   SAVE ARTICLE
-   ========================================================= */
-
-async function saveArticle(
-  event,
-  form
-) {
-
-  event.preventDefault();
-
-
-  const message =
-    form.querySelector(
-      ".save-message"
-    );
-
-
-  try {
-
-    message.innerHTML = `
-      <div class="notice">
-        Saving article...
-      </div>
-    `;
-
-
-    const articleId =
-      form.dataset.articleId;
-
-
-    const title =
-      form.querySelector(
-        '[name="title"]'
-      ).value.trim();
-
-
-    const image =
-      form.querySelector(
-        '[name="image"]'
-      ).value.trim();
-
-
-    /*
-     * ===============================================
-     * READ PAGES
-     * ===============================================
-     */
-
-    const pageElements =
-      form.querySelectorAll(
-        ".article-page"
+      console.error(
+        "Article Builder error:",
+        error
       );
 
-
-    if (
-      pageElements.length < 2
-    ) {
-
-      throw new Error(
-        "NewsQuest requires at least 2 article pages."
-      );
+      articleList.innerHTML = `
+        <div class="error">
+          Unable to load articles.
+          Please check your Firestore connection.
+        </div>
+      `;
 
     }
-
-
-    const pages =
-      Array.from(
-        pageElements
-      ).map(
-        page => {
-
-          const paragraphElements =
-            page.querySelectorAll(
-              ".page-paragraph textarea"
-            );
-
-
-          if (
-            paragraphElements.length > 5
-          ) {
-
-            throw new Error(
-              "A page cannot contain more than 5 paragraphs."
-            );
-
-          }
-
-
-          const paragraphs =
-            Array.from(
-              paragraphElements
-            ).map(
-              textarea =>
-                textarea.value.trim()
-            );
-
-
-          if (
-            paragraphs.some(
-              paragraph =>
-                !paragraph
-            )
-          ) {
-
-            throw new Error(
-              "Please complete or remove every empty paragraph."
-            );
-
-          }
-
-
-          return {
-
-            paragraphs
-
-          };
-
-        }
-      );
-
-
-    /*
-     * ===============================================
-     * FLATTEN PARAGRAPHS
-     *
-     * Kept for compatibility with
-     * existing reader code.
-     * ===============================================
-     */
-
-    const paragraphs =
-      pages
-        .flatMap(
-          page =>
-            page.paragraphs
-        );
-
-
-    /*
-     * ===============================================
-     * READ GAMES
-     * ===============================================
-     */
-
-    const gameElements =
-      form.querySelectorAll(
-        ".game-item"
-      );
-
-
-    const games =
-      Array.from(
-        gameElements
-      ).map(
-        gameItem =>
-          readGameItem(
-            gameItem
-          )
-      );
-
-
-    /*
-     * ===============================================
-     * VALIDATE GAME POSITIONS
-     * ===============================================
-     */
-
-    games.forEach(
-      game => {
-
-        if (
-          game.afterPage < 1 ||
-          game.afterPage >
-            pages.length
-        ) {
-
-          throw new Error(
-            "Every challenge must be placed after a valid article page."
-          );
-
-        }
-
-
-        /*
-         * JUMBLED
-         */
-
-        if (
-          game.type ===
-          "jumbled"
-        ) {
-
-          if (
-            !game.answer
-          ) {
-
-            throw new Error(
-              "Jumbled Words needs a correct answer."
-            );
-
-          }
-
-
-          if (
-            !game.scrambled
-          ) {
-
-            throw new Error(
-              "Jumbled Words needs scrambled letters."
-            );
-
-          }
-
-        }
-
-
-        /*
-         * FOUR PICS
-         */
-
-        if (
-          game.type ===
-          "fourPics"
-        ) {
-
-          if (
-            game.images.some(
-              image =>
-                !image
-            )
-          ) {
-
-            throw new Error(
-              "4 Pics 1 Word needs all 4 image URLs."
-            );
-
-          }
-
-
-          if (
-            !game.answer
-          ) {
-
-            throw new Error(
-              "4 Pics 1 Word needs a correct answer."
-            );
-
-          }
-
-        }
-
-
-        /*
-         * CROSSWORD
-         *
-         * Temporary validation.
-         */
-
-        if (
-          game.type ===
-          "crossword"
-        ) {
-
-          if (
-            !game.clues[0]
-          ) {
-
-            throw new Error(
-              "Mini Crossword needs a clue."
-            );
-
-          }
-
-
-          if (
-            !game.crosswordAnswers[0]
-          ) {
-
-            throw new Error(
-              "Mini Crossword needs an answer."
-            );
-
-          }
-
-        }
-
-      }
-    );
-
-
-    /*
-     * ===============================================
-     * FINAL QUIZ
-     * ===============================================
-     */
-
-    const questions =
-      Array.from(
-        { length: 5 },
-        (_, index) => {
-
-          const text =
-            form.querySelector(
-              `[name="q${index}_text"]`
-            ).value.trim();
-
-
-          const choices =
-            Array.from(
-              { length: 4 },
-              (
-                _,
-                choiceIndex
-              ) =>
-                form.querySelector(
-                  `[name="q${index}_choice${choiceIndex}"]`
-                ).value.trim()
-            );
-
-
-          const correct =
-            Number(
-              form.querySelector(
-                `[name="q${index}_correct"]`
-              ).value
-            );
-
-
-          return {
-
-            text,
-
-            choices,
-
-            correct
-
-          };
-
-        }
-      );
-
-
-    questions.forEach(
-      (
-        question,
-        index
-      ) => {
-
-        if (
-          !question.text
-        ) {
-
-          throw new Error(
-            `Question ${
-              index + 1
-            } is empty.`
-          );
-
-        }
-
-
-        if (
-          question.choices.some(
-            choice =>
-              !choice
-          )
-        ) {
-
-          throw new Error(
-            `Please complete all choices for Question ${
-              index + 1
-            }.`
-          );
-
-        }
-
-      }
-    );
-
-
-    /*
-     * ===============================================
-     * LEGACY BODY
-     * ===============================================
-     */
-
-    const body =
-      paragraphs.join(
-        "\n\n"
-      );
-
-
-    /*
-     * ===============================================
-     * SAVE
-     * ===============================================
-     */
-
-    await setDoc(
-      doc(
-        db,
-        "articles",
-        articleId
-      ),
-      {
-
-        articleId,
-
-        title,
-
-        image,
-
-        /*
-         * NEW STRUCTURE
-         */
-
-        pages,
-
-        games,
-
-        /*
-         * OLD STRUCTURE KEPT FOR
-         * COMPATIBILITY
-         */
-
-        paragraphs,
-
-        body,
-
-        questions,
-
-        updatedAt:
-          serverTimestamp()
-
-      }
-    );
-
-
-    message.innerHTML = `
-      <div class="save-success">
-        ✓ ${escapeHTML(
-          articleName(
-            articleId
-          )
-        )} saved successfully.
-      </div>
-    `;
-
-
-    /*
-     * Update small page counter
-     */
-
-    const status =
-      form.querySelector(
-        ".editor-status"
-      );
-
-
-    if (status) {
-
-      status.textContent =
-        `${pages.length} pages`;
-
-    }
-
-
-  } catch (error) {
-
-    console.error(
-      "Save article error:",
-      error
-    );
-
-
-    message.innerHTML = `
-      <div class="error">
-        ${escapeHTML(
-          error.message ||
-          "Unable to save article."
-        )}
-      </div>
-    `;
-
   }
 
-}
   // =========================================================
   // CODE MANAGER
   // =========================================================
@@ -2221,6 +1904,7 @@ async function saveArticle(
   }
 
   async function addCode(event) {
+
     event.preventDefault();
 
     const message =
@@ -2249,6 +1933,7 @@ async function saveArticle(
         code
       )
     ) {
+
       message.innerHTML =
         errorBox(
           "Use a format like SET1-004."
@@ -2269,7 +1954,10 @@ async function saveArticle(
       const existing =
         await getDoc(ref);
 
-      if (existing.exists()) {
+      if (
+        existing.exists()
+      ) {
+
         message.innerHTML =
           errorBox(
             "That respondent code already exists."
@@ -2281,7 +1969,9 @@ async function saveArticle(
       await setDoc(
         ref,
         {
+
           code,
+
           set,
 
           articleId:
@@ -2297,6 +1987,7 @@ async function saveArticle(
 
           createdAt:
             serverTimestamp()
+
         }
       );
 
@@ -2317,6 +2008,7 @@ async function saveArticle(
         errorBox(
           "The respondent code could not be added."
         );
+
     }
   }
 
@@ -2347,57 +2039,60 @@ async function saveArticle(
             id: item.id,
             ...item.data()
           }))
-          .sort((a, b) =>
-            String(
-              a.code
-            ).localeCompare(
+          .sort(
+            (a, b) =>
               String(
-                b.code
+                a.code
+              ).localeCompare(
+                String(
+                  b.code
+                )
               )
-            )
           )
-          .map(code => `
-            <tr>
+          .map(
+            code => `
+              <tr>
 
-              <td>
-                ${escapeHTML(
-                  code.code || ""
-                )}
-              </td>
-
-              <td>
-                Set ${escapeHTML(
-                  code.set || ""
-                )}
-              </td>
-
-              <td>
-                ${escapeHTML(
-                  articleName(
-                    code.articleId || ""
-                  )
-                )}
-              </td>
-
-              <td>
-
-                <span
-                  class="status ${
-                    code.status ===
-                    "Used"
-                      ? "used"
-                      : "available"
-                  }"
-                >
+                <td>
                   ${escapeHTML(
-                    code.status || ""
+                    code.code || ""
                   )}
-                </span>
+                </td>
 
-              </td>
+                <td>
+                  Set ${escapeHTML(
+                    code.set || ""
+                  )}
+                </td>
 
-            </tr>
-          `)
+                <td>
+                  ${escapeHTML(
+                    articleName(
+                      code.articleId || ""
+                    )
+                  )}
+                </td>
+
+                <td>
+
+                  <span
+                    class="status ${
+                      code.status ===
+                      "Used"
+                        ? "used"
+                        : "available"
+                    }"
+                  >
+                    ${escapeHTML(
+                      code.status || ""
+                    )}
+                  </span>
+
+                </td>
+
+              </tr>
+            `
+          )
           .join("");
 
       table.innerHTML =
@@ -2421,6 +2116,7 @@ async function saveArticle(
           </td>
         </tr>
       `;
+
     }
   }
 
@@ -2512,7 +2208,10 @@ async function saveArticle(
         const rows =
           snapshot.docs
             .map(
-              (item, index) => {
+              (
+                item,
+                index
+              ) => {
 
                 const entry =
                   item.data();
@@ -2558,7 +2257,7 @@ async function saveArticle(
                         ${rank}.
                         ${escapeHTML(
                           entry.displayName ||
-                            "Participant"
+                          "Participant"
                         )}
                       </strong>
 
@@ -2572,6 +2271,7 @@ async function saveArticle(
 
                   </div>
                 `;
+
               }
             )
             .join("");
@@ -2605,6 +2305,7 @@ async function saveArticle(
 
           </div>
         `);
+
       }
 
       document.querySelector(
@@ -2626,6 +2327,7 @@ async function saveArticle(
           Unable to load the leaderboards.
         </div>
       `;
+
     }
   }
 
@@ -2724,6 +2426,7 @@ async function saveArticle(
             response.status ||
               "Completed"
           ]);
+
         }
       );
 
@@ -2764,7 +2467,8 @@ async function saveArticle(
           "a"
         );
 
-      link.href = url;
+      link.href =
+        url;
 
       link.download =
         "newsquest-responses.csv";
@@ -2788,6 +2492,7 @@ async function saveArticle(
       alert(
         "Unable to export the research data."
       );
+
     }
   }
 
@@ -2800,13 +2505,16 @@ async function saveArticle(
     async user => {
 
       if (!user) {
+
         renderLogin();
+
         return;
       }
 
       await renderDashboard(
         "records"
       );
+
     }
   );
 
