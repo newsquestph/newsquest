@@ -2476,12 +2476,9 @@ function renderArticleWithGames(article) {
 playSound("complete.mp3");
 
 await renderResult({
-
   ...responseData,
-
   submittedAt:
     new Date().toISOString()
-
 });
 
     } catch (error) {
