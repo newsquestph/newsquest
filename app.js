@@ -482,17 +482,10 @@ function renderArticleWithGames(article) {
     paragraphs.length;
 
 
-  console.log("NEWSQUEST ARTICLE:", article);
-  console.log("NEWSQUEST GAMES:", games);
-
-
   /*
-    Convert games into:
-
-    paragraph number -> game
-
-    Example:
-    position 2 = game appears after paragraph 2
+    ---------------------------------------------------------
+    BUILD GAME MAP
+    ---------------------------------------------------------
   */
 
   const gameMap = {};
@@ -505,7 +498,7 @@ function renderArticleWithGames(article) {
     if (
       Number.isInteger(position) &&
       position >= 1 &&
-      position < totalParagraphs
+      position <= totalParagraphs
     ) {
 
       gameMap[position] = game;
@@ -516,13 +509,29 @@ function renderArticleWithGames(article) {
 
 
   /*
-    Determine which paragraph/game
-    is the first locked section.
+    ---------------------------------------------------------
+    BUILD BOOK PAGES
+    ---------------------------------------------------------
+
+    Example:
+
+    paragraphs 1-2
+    game after 2
+    = PAGE 1
+
+    paragraphs 3-4
+    game after 4
+    = PAGE 2
+
+    paragraphs 5-6
+    = PAGE 3
+
+    The article remains ONE continuous story.
   */
 
-  let firstLockedParagraph =
-    totalParagraphs + 1;
+  const pages = [];
 
+  let currentParagraphs = [];
 
   for (
     let i = 1;
@@ -530,19 +539,93 @@ function renderArticleWithGames(article) {
     i++
   ) {
 
+    currentParagraphs.push({
+      number: i,
+      text: paragraphs[i - 1]
+    });
+
+
+    /*
+      If there is a game after this paragraph,
+      finish the current book page.
+    */
+
     if (gameMap[i]) {
 
-      firstLockedParagraph =
-        i + 1;
+      pages.push({
 
-      break;
+        paragraphs:
+          currentParagraphs,
+
+        game:
+          gameMap[i],
+
+        gamePosition:
+          i
+
+      });
+
+      currentParagraphs = [];
 
     }
 
   }
 
 
-  document.querySelector("#app").innerHTML = `
+  /*
+    Add remaining paragraphs as final page.
+  */
+
+  if (
+    currentParagraphs.length > 0
+  ) {
+
+    pages.push({
+
+      paragraphs:
+        currentParagraphs,
+
+      game:
+        null,
+
+      gamePosition:
+        null
+
+    });
+
+  }
+
+
+  /*
+    Safety fallback
+  */
+
+  if (
+    pages.length === 0
+  ) {
+
+    pages.push({
+
+      paragraphs: [],
+
+      game: null,
+
+      gamePosition: null
+
+    });
+
+  }
+
+
+  /*
+    ---------------------------------------------------------
+    RENDER BOOK
+    ---------------------------------------------------------
+  */
+
+  document.querySelector(
+    "#app"
+  ).innerHTML = `
 
     <div class="topbar">
 
@@ -551,11 +634,11 @@ function renderArticleWithGames(article) {
         <div class="progress-label">
 
           <span>
-            Reading
+            NewsQuest
           </span>
 
-          <span>
-            Article
+          <span id="book-page-label">
+            Page 1 / ${pages.length}
           </span>
 
         </div>
@@ -563,8 +646,9 @@ function renderArticleWithGames(article) {
         <div class="progress-track">
 
           <div
+            id="book-progress"
             class="progress-fill"
-            style="width: 100%"
+            style="width: 0%"
           ></div>
 
         </div>
@@ -578,181 +662,299 @@ function renderArticleWithGames(article) {
     </div>
 
 
-    <article class="article-card card">
+    <article class="newsquest-book">
 
-      <div class="article-content">
+      <div
+        class="book-shell"
+        id="newsquest-book"
+      >
 
-        <div class="eyebrow">
+        <div
+          class="book-page-area"
+          id="book-page-area"
+        >
 
-          Set ${escapeHTML(
-            session?.set || ""
-          )}
+          ${
+            pages
+              .map(
+                (
+                  page,
+                  pageIndex
+                ) => {
 
-          · Assigned reading
+                  const firstParagraph =
+                    page.paragraphs[0];
 
-        </div>
-
-
-        <h2>
-          ${escapeHTML(
-            article.title || ""
-          )}
-        </h2>
-
-
-        ${
-          article.image
-            ? `
-              <img
-                src="${escapeAttr(article.image)}"
-                alt="${escapeAttr(
-                  article.title ||
-                  "Article image"
-                )}"
-                class="article-image"
-              >
-            `
-            : ""
-        }
+                  const isFirstPage =
+                    pageIndex === 0;
 
 
-        <div class="article-reading">
+                  return `
 
-          ${paragraphs
-            .map((paragraph, index) => {
+                    <section
+                      class="
+                        nq-page
+                        ${
+                          isFirstPage
+                            ? "nq-page-active"
+                            : ""
+                        }
+                      "
+                      data-page="${pageIndex}"
+                    >
 
-              const paragraphNumber =
-                index + 1;
+                      <div class="nq-page-inner">
 
-              const game =
-                gameMap[paragraphNumber];
+                        <div class="nq-page-header">
 
+                          <div class="nq-publication">
+                            NEWSQUEST
+                          </div>
 
-              /*
-                Everything after the first locked
-                point starts blurred.
-              */
+                          <div class="nq-page-number">
 
-              const isLocked =
-                paragraphNumber >=
-                firstLockedParagraph;
-
-
-              return `
-
-                <div
-                  class="
-                    article-step
-                    ${isLocked ? "locked-content" : ""}
-                  "
-                  data-paragraph="${paragraphNumber}"
-                  ${
-                    isLocked
-                      ? 'data-locked="true"'
-                      : 'data-locked="false"'
-                  }
-                >
-
-                  ${
-                    isLocked
-                      ? `
-
-                        <div class="locked-overlay">
-
-                          <div class="locked-message">
-
-                            <div class="locked-icon">
-                              🔒
-                            </div>
-
-                            <strong>
-                              Paragraph locked
-                            </strong>
-
-                            <span>
-                              Answer the game above
-                              to unlock the next part
-                              of the article.
-                            </span>
+                            ${
+                              String(
+                                pageIndex + 1
+                              ).padStart(
+                                2,
+                                "0"
+                              )
+                            }
 
                           </div>
 
                         </div>
 
-                      `
-                      : ""
-                  }
+
+                        ${
+                          isFirstPage
+                            ? `
+
+                              <div class="nq-article-kicker">
+
+                                Set
+                                ${escapeHTML(
+                                  session?.set || ""
+                                )}
+
+                                · Assigned Reading
+
+                              </div>
+
+                              <h1 class="nq-title">
+
+                                ${escapeHTML(
+                                  article.title || ""
+                                )}
+
+                              </h1>
+
+                              ${
+                                article.image
+                                  ? `
+
+                                    <img
+                                      src="${escapeAttr(
+                                        article.image
+                                      )}"
+                                      alt="${escapeAttr(
+                                        article.title ||
+                                        "Article image"
+                                      )}"
+                                      class="nq-hero-image"
+                                    >
+
+                                  `
+                                  : ""
+                              }
+
+                            `
+                            : `
+
+                              <div class="nq-continuation">
+
+                                STORY CONTINUES
+
+                              </div>
+
+                            `
+                        }
 
 
-                  <div
-                    class="${
-                      isLocked
-                        ? "locked-blur"
-                        : ""
-                    }"
-                  >
+                        <div class="nq-story-content">
 
-                    <p class="article-body">
+                          ${
+                            page.paragraphs
+                              .map(
+                                (
+                                  paragraph,
+                                  paragraphIndex
+                                ) => `
 
-                      ${escapeHTML(
-                        paragraph
-                      )}
+                                  <p
+                                    class="
+                                      nq-paragraph
+                                      ${
+                                        paragraphIndex === 0 &&
+                                        isFirstPage
+                                          ? "nq-dropcap"
+                                          : ""
+                                      }
+                                    "
+                                  >
 
-                    </p>
+                                    ${escapeHTML(
+                                      paragraph.text
+                                    )}
+
+                                  </p>
+
+                                `
+                              )
+                              .join("")
+                          }
+
+                        </div>
 
 
-                    ${
-                      game
-                        ? `
+                        ${
+                          page.game
+                            ? `
 
-                          <div
-                            class="interactive-game card"
-                            data-game-position="${paragraphNumber}"
-                          >
+                              <div
+                                class="
+                                  nq-game-break
+                                "
+                              >
 
-                            ${renderReaderGame(game)}
+                                <div class="nq-game-line"></div>
 
-                          </div>
+                                <div class="nq-game-label">
 
-                        `
-                        : ""
-                    }
+                                  READER CHALLENGE
 
-                  </div>
+                                </div>
 
-                </div>
+                                <div
+                                  class="nq-game-wrapper interactive-game"
+                                  data-game-position="${
+                                    page.gamePosition
+                                  }"
+                                >
 
-              `;
+                                  ${renderReaderGame(
+                                    page.game
+                                  )}
 
-            })
-            .join("")}
+                                </div>
+
+                              </div>
+
+                            `
+                            : ""
+                        }
+
+
+                        ${
+                          !page.game &&
+                          pageIndex ===
+                            pages.length - 1
+                            ? `
+
+                              <div
+                                id="final-reading-action"
+                                class="nq-final-action"
+                              >
+
+                                <div class="nq-game-line"></div>
+
+                                <div class="nq-game-label">
+                                  ARTICLE COMPLETE
+                                </div>
+
+                                <button
+                                  id="begin-quiz"
+                                  class="primary-btn"
+                                  type="button"
+                                >
+
+                                  Proceed to Final Quiz →
+
+                                </button>
+
+                              </div>
+
+                            `
+                            : ""
+                        }
+
+
+                        <div class="nq-page-footer">
+
+                          <span>
+                            ${
+                              pageIndex === 0
+                                ? "THE DAILY STORY"
+                                : "STORY CONTINUES"
+                            }
+                          </span>
+
+                          <span>
+                            ${
+                              String(
+                                pageIndex + 1
+                              ).padStart(
+                                2,
+                                "0"
+                              )
+                            }
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                    </section>
+
+                  `;
+
+                }
+              )
+              .join("")
+          }
 
         </div>
 
+      </div>
 
-        <div
-          id="final-reading-action"
-          class="action-row"
-          style="display:none;"
+
+      <div class="nq-book-navigation">
+
+        <button
+          id="book-prev"
+          class="nq-nav-button"
+          type="button"
         >
+          ← Previous
+        </button>
 
-          <button
-            id="begin-quiz"
-            class="primary-btn"
-            type="button"
-          >
 
-            Proceed to Final Quiz
+        <div class="nq-swipe-label">
 
-          </button>
+          ← Swipe to turn the page →
 
         </div>
 
 
-        <div
-          id="article-message"
-        ></div>
+        <button
+          id="book-next"
+          class="nq-nav-button nq-nav-primary"
+          type="button"
+        >
+          Next →
 
+        </button>
 
       </div>
 
@@ -762,7 +964,517 @@ function renderArticleWithGames(article) {
 
 
   /*
+    ---------------------------------------------------------
+    BOOK STATE
+    ---------------------------------------------------------
+  */
+
+  let currentPage = 0;
+
+  const pageElements =
+    Array.from(
+      document.querySelectorAll(
+        ".nq-page"
+      )
+    );
+
+  const pageLabel =
+    document.querySelector(
+      "#book-page-label"
+    );
+
+  const progress =
+    document.querySelector(
+      "#book-progress"
+    );
+
+  const previousButton =
+    document.querySelector(
+      "#book-prev"
+    );
+
+  const nextButton =
+    document.querySelector(
+      "#book-next"
+    );
+
+  const bookArea =
+    document.querySelector(
+      "#book-page-area"
+    );
+
+
+  /*
+    Track which pages have been unlocked.
+  */
+
+  const unlockedPages =
+    new Set([0]);
+
+
+  /*
+    ---------------------------------------------------------
+    RENDER CURRENT PAGE
+    ---------------------------------------------------------
+  */
+
+  function renderBookPage(
+    pageIndex,
+    direction = "next"
+  ) {
+
+    if (
+      pageIndex < 0 ||
+      pageIndex >= pageElements.length
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      !unlockedPages.has(
+        pageIndex
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    currentPage =
+      pageIndex;
+
+
+    pageElements.forEach(
+      (
+        page,
+        index
+      ) => {
+
+        page.classList.remove(
+          "nq-page-active",
+          "nq-page-left",
+          "nq-page-right"
+        );
+
+
+        if (
+          index === currentPage
+        ) {
+
+          page.classList.add(
+            "nq-page-active"
+          );
+
+        }
+
+        else if (
+          index < currentPage
+        ) {
+
+          page.classList.add(
+            "nq-page-left"
+          );
+
+        }
+
+        else {
+
+          page.classList.add(
+            "nq-page-right"
+          );
+
+        }
+
+      }
+    );
+
+
+    const totalPages =
+      pageElements.length;
+
+
+    pageLabel.textContent =
+      `Page ${
+        currentPage + 1
+      } / ${
+        totalPages
+      }`;
+
+
+    progress.style.width =
+      `${
+        (
+          (
+            currentPage + 1
+          ) /
+          totalPages
+        ) *
+        100
+      }%`;
+
+
+    previousButton.disabled =
+      currentPage === 0;
+
+
+    const isLastPage =
+      currentPage ===
+      totalPages - 1;
+
+
+    nextButton.textContent =
+      isLastPage
+        ? "Finished"
+        : "Next →";
+
+
+    /*
+      If next page is locked,
+      make the button clearly disabled.
+    */
+
+    const nextPage =
+      currentPage + 1;
+
+
+    if (
+      !isLastPage &&
+      !unlockedPages.has(
+        nextPage
+      )
+    ) {
+
+      nextButton.disabled =
+        true;
+
+      nextButton.textContent =
+        "Complete challenge →";
+
+    }
+
+    else {
+
+      nextButton.disabled =
+        false;
+
+    }
+
+  }
+
+
+  /*
+    ---------------------------------------------------------
+    UNLOCK NEXT PAGE
+    ---------------------------------------------------------
+  */
+
+  function unlockNextPage() {
+
+    const nextPage =
+      currentPage + 1;
+
+
+    if (
+      nextPage <
+      pageElements.length
+    ) {
+
+      unlockedPages.add(
+        nextPage
+      );
+
+
+      /*
+        Small delay makes the transition
+        feel intentional.
+      */
+
+      setTimeout(
+        () => {
+
+          renderBookPage(
+            nextPage,
+            "next"
+          );
+
+        },
+        350
+      );
+
+    }
+
+  }
+
+
+  /*
+    ---------------------------------------------------------
+    NAVIGATION
+    ---------------------------------------------------------
+  */
+
+  previousButton.addEventListener(
+    "click",
+    () => {
+
+      if (
+        currentPage > 0
+      ) {
+
+        renderBookPage(
+          currentPage - 1,
+          "previous"
+        );
+
+      }
+
+    }
+  );
+
+
+  nextButton.addEventListener(
+    "click",
+    () => {
+
+      const nextPage =
+        currentPage + 1;
+
+
+      if (
+        nextPage <
+        pageElements.length &&
+        unlockedPages.has(
+          nextPage
+        )
+      ) {
+
+        renderBookPage(
+          nextPage,
+          "next"
+        );
+
+      }
+
+    }
+  );
+
+
+  /*
+    ---------------------------------------------------------
+    SWIPE SUPPORT
+    ---------------------------------------------------------
+  */
+
+  let touchStartX =
+    0;
+
+  let touchStartY =
+    0;
+
+
+  bookArea.addEventListener(
+    "touchstart",
+    event => {
+
+      const touch =
+        event.changedTouches[0];
+
+      touchStartX =
+        touch.clientX;
+
+      touchStartY =
+        touch.clientY;
+
+    },
+    {
+      passive: true
+    }
+  );
+
+
+  bookArea.addEventListener(
+    "touchend",
+    event => {
+
+      const touch =
+        event.changedTouches[0];
+
+      const deltaX =
+        touch.clientX -
+        touchStartX;
+
+      const deltaY =
+        touch.clientY -
+        touchStartY;
+
+
+      /*
+        Ignore mostly vertical swipes.
+      */
+
+      if (
+        Math.abs(deltaX) <
+        60 ||
+        Math.abs(deltaX) <
+        Math.abs(deltaY)
+      ) {
+
+        return;
+
+      }
+
+
+      /*
+        Swipe LEFT = next page
+      */
+
+      if (
+        deltaX < 0
+      ) {
+
+        const nextPage =
+          currentPage + 1;
+
+
+        if (
+          unlockedPages.has(
+            nextPage
+          )
+        ) {
+
+          renderBookPage(
+            nextPage,
+            "next"
+          );
+
+        }
+
+      }
+
+
+      /*
+        Swipe RIGHT = previous page
+      */
+
+      else {
+
+        const previousPage =
+          currentPage - 1;
+
+
+        if (
+          previousPage >= 0
+        ) {
+
+          renderBookPage(
+            previousPage,
+            "previous"
+          );
+
+        }
+
+      }
+
+    },
+    {
+      passive: true
+    }
+  );
+
+
+  /*
+    ---------------------------------------------------------
+    MOUSE / TRACKPAD SWIPE
+    ---------------------------------------------------------
+  */
+
+  let pointerStartX =
+    0;
+
+
+  bookArea.addEventListener(
+    "pointerdown",
+    event => {
+
+      pointerStartX =
+        event.clientX;
+
+    }
+  );
+
+
+  bookArea.addEventListener(
+    "pointerup",
+    event => {
+
+      const deltaX =
+        event.clientX -
+        pointerStartX;
+
+
+      if (
+        Math.abs(deltaX) <
+        70
+      ) {
+
+        return;
+
+      }
+
+
+      if (
+        deltaX < 0
+      ) {
+
+        const nextPage =
+          currentPage + 1;
+
+
+        if (
+          unlockedPages.has(
+            nextPage
+          )
+        ) {
+
+          renderBookPage(
+            nextPage,
+            "next"
+          );
+
+        }
+
+      }
+
+      else {
+
+        const previousPage =
+          currentPage - 1;
+
+
+        if (
+          previousPage >= 0
+        ) {
+
+          renderBookPage(
+            previousPage,
+            "previous"
+          );
+
+        }
+
+      }
+
+    }
+  );
+
+
+  /*
+    ---------------------------------------------------------
     GAME BUTTONS
+    ---------------------------------------------------------
   */
 
   document
@@ -784,7 +1496,9 @@ function renderArticleWithGames(article) {
 
 
         if (!game) {
+
           return;
+
         }
 
 
@@ -847,18 +1561,23 @@ function renderArticleWithGames(article) {
             }
 
 
-        if (
-  userAnswer ===
-  correctAnswer
-) {
+            /*
+              CORRECT ANSWER
+            */
 
-  showConfetti();
+            if (
+              userAnswer ===
+              correctAnswer
+            ) {
 
-  message.innerHTML =
-    setMessage(
-      "Correct! Great job.",
-      "success"
-    );
+              showConfetti();
+
+
+              message.innerHTML =
+                setMessage(
+                  "Correct! Great job.",
+                  "success"
+                );
 
 
               input.disabled =
@@ -869,195 +1588,62 @@ function renderArticleWithGames(article) {
 
 
               /*
-                Unlock the next section.
-
-                IMPORTANT:
-                We don't just reveal one paragraph.
-                We reveal everything until the next game.
+                Unlock the next book page.
               */
 
-              let nextGamePosition =
-                null;
+              const pageElement =
+                gameContainer.closest(
+                  ".nq-page"
+                );
 
 
-              const gamePositions =
-                Object.keys(
-                  gameMap
-                )
-                  .map(Number)
-                  .sort(
-                    (a, b) => a - b
+              if (pageElement) {
+
+                const pageIndex =
+                  Number(
+                    pageElement.dataset
+                      .page
                   );
 
 
-              for (
-                const gamePosition
-                of gamePositions
-              ) {
+                const nextPage =
+                  pageIndex + 1;
+
 
                 if (
-                  gamePosition >
-                  position
+                  nextPage <
+                  pageElements.length
                 ) {
 
-                  nextGamePosition =
-                    gamePosition;
-
-                  break;
-
-                }
-
-              }
-
-
-              /*
-                If there is another game,
-                reveal all paragraphs up to
-                and including the paragraph
-                containing that next game.
-              */
-
-              const revealUntil =
-                nextGamePosition
-                  ? nextGamePosition
-                  : totalParagraphs;
-
-
-              for (
-                let paragraphNumber =
-                  position + 1;
-                paragraphNumber <=
-                  revealUntil;
-                paragraphNumber++
-              ) {
-
-                const paragraph =
-                  document.querySelector(
-                    `.article-step[data-paragraph="${paragraphNumber}"]`
+                  unlockedPages.add(
+                    nextPage
                   );
 
 
-                if (!paragraph) {
-                  continue;
-                }
+                  /*
+                    Enable navigation.
+                  */
 
+                  if (
+                    currentPage ===
+                    pageIndex
+                  ) {
 
-                paragraph.classList.remove(
-                  "locked-content"
-                );
+                    nextButton.disabled =
+                      false;
 
-
-                paragraph
-                  .removeAttribute(
-                    "data-locked"
-                  );
-
-
-                const overlay =
-                  paragraph.querySelector(
-                    ".locked-overlay"
-                  );
-
-
-                if (overlay) {
-
-                  overlay.remove();
-
-                }
-
-
-                const blurred =
-                  paragraph.querySelector(
-                    ".locked-blur"
-                  );
-
-
-                if (blurred) {
-
-                  blurred.classList.remove(
-                    "locked-blur"
-                  );
-
-                }
-
-              }
-
-
-              /*
-                Scroll to the next unlocked
-                content.
-              */
-
-              const nextSection =
-                document.querySelector(
-                  `.article-step[data-paragraph="${position + 1}"]`
-                );
-
-
-              if (nextSection) {
-
-                setTimeout(() => {
-
-                  nextSection.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start"
-                  });
-
-                }, 150);
-
-              }
-
-
-              /*
-                Check whether any unanswered
-                games remain.
-              */
-
-              const remainingGames =
-                Array.from(
-                  document.querySelectorAll(
-                    ".interactive-game"
-                  )
-                ).some(
-                  container => {
-
-                    const gameInput =
-                      container.querySelector(
-                        ".game-answer"
-                      );
-
-
-                    return (
-                      gameInput &&
-                      !gameInput.disabled
-                    );
+                    nextButton.textContent =
+                      "Turn Page →";
 
                   }
-                );
-
-
-              /*
-                All games completed.
-              */
-
-              if (!remainingGames) {
-
-                const finalAction =
-                  document.querySelector(
-                    "#final-reading-action"
-                  );
-
-
-                if (finalAction) {
-
-                  finalAction.style.display =
-                    "flex";
 
                 }
 
               }
 
-            } else {
+            }
+
+            else {
 
               message.innerHTML =
                 setMessage(
@@ -1074,7 +1660,9 @@ function renderArticleWithGames(article) {
 
 
   /*
+    ---------------------------------------------------------
     FINAL QUIZ BUTTON
+    ---------------------------------------------------------
   */
 
   const quizButton =
@@ -1089,12 +1677,25 @@ function renderArticleWithGames(article) {
       "click",
       () => {
 
-        renderQuiz(article);
+        renderQuiz(
+          article
+        );
 
       }
     );
 
   }
+
+
+  /*
+    ---------------------------------------------------------
+    START
+    ---------------------------------------------------------
+  */
+
+  renderBookPage(
+    0
+  );
 
 }
 
