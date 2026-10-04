@@ -28,7 +28,7 @@
   ========================================================= */
 
   const firebaseConfig = {
-    apiKey: "AIzaSyBTRwdQi-oi6mPi7SlcwfZr528PWIKFcI",
+    apiKey: "AIzaSyBTRwdQi-oi6mPi7SlcwfZr528PWpIKFcI",
     authDomain: "newsquest-a6dbc.firebaseapp.com",
     projectId: "newsquest-a6dbc",
     storageBucket: "newsquest-a6dbc.firebasestorage.app",
@@ -98,72 +98,6 @@
       "newsquest_session",
       JSON.stringify(session)
     );
-
-  }
-
-
-  /* =========================================================
-     CONFETTI
-  ========================================================= */
-
-  function showConfetti() {
-
-    const container =
-      document.createElement("div");
-
-    container.className =
-      "confetti-container";
-
-    const pieces = 45;
-
-    for (
-      let i = 0;
-      i < pieces;
-      i++
-    ) {
-
-      const piece =
-        document.createElement("span");
-
-      piece.className =
-        "confetti-piece";
-
-      piece.style.left =
-        Math.random() * 100 + "%";
-
-      piece.style.animationDelay =
-        Math.random() * 0.25 + "s";
-
-      piece.style.transform =
-        `rotate(${Math.random() * 360}deg)`;
-
-      piece.style.background =
-        [
-          "#2e7d32",
-          "#66bb6a",
-          "#f9c74f",
-          "#ffffff",
-          "#81c784"
-        ][
-          Math.floor(
-            Math.random() * 5
-          )
-        ];
-
-      container.appendChild(
-        piece
-      );
-    }
-
-    document.body.appendChild(
-      container
-    );
-
-    setTimeout(() => {
-
-      container.remove();
-
-    }, 1600);
 
   }
 
@@ -493,218 +427,253 @@
      NEW ARTICLE FORMAT
   ========================================================= */
 
-  function renderArticleWithGames(article) {
+function renderArticleWithGames(article) {
 
-    const session = getSession();
+  const session = getSession();
 
-    const paragraphs =
-      Array.isArray(article.paragraphs)
-        ? article.paragraphs
-        : [];
+  const paragraphs =
+    Array.isArray(article.paragraphs)
+      ? article.paragraphs
+      : [];
 
-    const games =
-      Array.isArray(article.games)
-        ? article.games
-        : [];
+  const games =
+    Array.isArray(article.games)
+      ? article.games
+      : [];
 
-    const totalParagraphs =
-      paragraphs.length;
-
-
-    console.log("NEWSQUEST ARTICLE:", article);
-    console.log("NEWSQUEST GAMES:", games);
+  const totalParagraphs =
+    paragraphs.length;
 
 
-    /*
-      Convert games into:
-
-      paragraph number -> game
-
-      Example:
-      position 2 = game appears after paragraph 2
-    */
-
-    const gameMap = {};
-
-    games.forEach(game => {
-
-      const position =
-        Number(game.position);
-
-      if (
-        Number.isInteger(position) &&
-        position >= 1 &&
-        position < totalParagraphs
-      ) {
-
-        gameMap[position] = game;
-
-      }
-
-    });
+  console.log("NEWSQUEST ARTICLE:", article);
+  console.log("NEWSQUEST GAMES:", games);
 
 
-    /*
-      Determine which paragraph/game
-      is the first locked section.
-    */
+  /*
+    Convert games into:
 
-    let firstLockedParagraph =
-      totalParagraphs + 1;
+    paragraph number -> game
 
+    Example:
+    position 2 = game appears after paragraph 2
+  */
 
-    for (
-      let i = 1;
-      i <= totalParagraphs;
-      i++
+  const gameMap = {};
+
+  games.forEach(game => {
+
+    const position =
+      Number(game.position);
+
+    if (
+      Number.isInteger(position) &&
+      position >= 1 &&
+      position < totalParagraphs
     ) {
 
-      if (gameMap[i]) {
-
-        firstLockedParagraph =
-          i + 1;
-
-        break;
-
-      }
+      gameMap[position] = game;
 
     }
 
+  });
 
-    document.querySelector("#app").innerHTML = `
 
-      <div class="topbar">
+  /*
+    Determine which paragraph/game
+    is the first locked section.
+  */
 
-        <div class="progress-wrap">
+  let firstLockedParagraph =
+    totalParagraphs + 1;
 
-          <div class="progress-label">
 
-            <span>
-              Reading
-            </span>
+  for (
+    let i = 1;
+    i <= totalParagraphs;
+    i++
+  ) {
 
-            <span>
-              Article
-            </span>
+    if (gameMap[i]) {
 
-          </div>
+      firstLockedParagraph =
+        i + 1;
 
-          <div class="progress-track">
+      break;
 
-            <div
-              class="progress-fill"
-              style="width: 100%"
-            ></div>
+    }
 
-          </div>
+  }
+
+
+  document.querySelector("#app").innerHTML = `
+
+    <div class="topbar">
+
+      <div class="progress-wrap">
+
+        <div class="progress-label">
+
+          <span>
+            Reading
+          </span>
+
+          <span>
+            Article
+          </span>
 
         </div>
 
-        <div class="points">
-          +0 points
+        <div class="progress-track">
+
+          <div
+            class="progress-fill"
+            style="width: 100%"
+          ></div>
+
         </div>
 
       </div>
 
+      <div class="points">
+        +0 points
+      </div>
 
-      <article class="article-card card">
-
-        <div class="article-content">
-
-          <div class="eyebrow">
-
-            Set ${escapeHTML(
-              session?.set || ""
-            )}
-
-            · Assigned reading
-
-          </div>
+    </div>
 
 
-          <h2>
-            ${escapeHTML(
-              article.title || ""
-            )}
-          </h2>
+    <article class="article-card card">
+
+      <div class="article-content">
+
+        <div class="eyebrow">
+
+          Set ${escapeHTML(
+            session?.set || ""
+          )}
+
+          · Assigned reading
+
+        </div>
 
 
-          ${
-            article.image
-              ? `
-                <img
-                  src="${escapeAttr(article.image)}"
-                  alt="${escapeAttr(
-                    article.title ||
-                    "Article image"
-                  )}"
-                  class="article-image"
+        <h2>
+          ${escapeHTML(
+            article.title || ""
+          )}
+        </h2>
+
+
+        ${
+          article.image
+            ? `
+              <img
+                src="${escapeAttr(article.image)}"
+                alt="${escapeAttr(
+                  article.title ||
+                  "Article image"
+                )}"
+                class="article-image"
+              >
+            `
+            : ""
+        }
+
+
+        <div class="article-reading">
+
+          ${paragraphs
+            .map((paragraph, index) => {
+
+              const paragraphNumber =
+                index + 1;
+
+              const game =
+                gameMap[paragraphNumber];
+
+
+              /*
+                Everything after the first locked
+                point starts blurred.
+              */
+
+              const isLocked =
+                paragraphNumber >=
+                firstLockedParagraph;
+
+
+              return `
+
+                <div
+                  class="
+                    article-step
+                    ${isLocked ? "locked-content" : ""}
+                  "
+                  data-paragraph="${paragraphNumber}"
+                  ${
+                    isLocked
+                      ? 'data-locked="true"'
+                      : 'data-locked="false"'
+                  }
                 >
-              `
-              : ""
-          }
 
+                  ${
+                    isLocked
+                      ? `
 
-          <div class="article-reading">
+                        <div class="locked-overlay">
 
-            ${paragraphs
-              .map((paragraph, index) => {
+                          <div class="locked-message">
 
-                const paragraphNumber =
-                  index + 1;
+                            <div class="locked-icon">
+                              🔒
+                            </div>
 
-                const game =
-                  gameMap[paragraphNumber];
+                            <strong>
+                              Paragraph locked
+                            </strong>
 
+                            <span>
+                              Answer the game above
+                              to unlock the next part
+                              of the article.
+                            </span>
 
-                /*
-                  Everything after the first locked
-                  point starts blurred.
-                */
+                          </div>
 
-                const isLocked =
-                  paragraphNumber >=
-                  firstLockedParagraph;
+                        </div>
 
+                      `
+                      : ""
+                  }
 
-                return `
 
                   <div
-                    class="
-                      article-step
-                      ${isLocked ? "locked-content" : ""}
-                    "
-                    data-paragraph="${paragraphNumber}"
-                    ${
+                    class="${
                       isLocked
-                        ? 'data-locked="true"'
-                        : 'data-locked="false"'
-                    }
+                        ? "locked-blur"
+                        : ""
+                    }"
                   >
 
+                    <p class="article-body">
+
+                      ${escapeHTML(
+                        paragraph
+                      )}
+
+                    </p>
+
+
                     ${
-                      isLocked
+                      game
                         ? `
 
-                          <div class="locked-overlay">
+                          <div
+                            class="interactive-game card"
+                            data-game-position="${paragraphNumber}"
+                          >
 
-                            <div class="locked-message">
-
-                              <div class="locked-icon">
-                                🔒
-                              </div>
-
-                              <strong>
-                                Paragraph locked
-                              </strong>
-
-                              <span>
-                                Answer the game above
-                                to unlock the next part
-                                of the article.
-                              </span>
-
-                            </div>
+                            ${renderReaderGame(game)}
 
                           </div>
 
@@ -712,427 +681,383 @@
                         : ""
                     }
 
-
-                    <div
-                      class="${
-                        isLocked
-                          ? "locked-blur"
-                          : ""
-                      }"
-                    >
-
-                      <p class="article-body">
-
-                        ${escapeHTML(
-                          paragraph
-                        )}
-
-                      </p>
-
-
-                      ${
-                        game
-                          ? `
-
-                            <div
-                              class="interactive-game card"
-                              data-game-position="${paragraphNumber}"
-                            >
-
-                              ${renderReaderGame(game)}
-
-                            </div>
-
-                          `
-                          : ""
-                      }
-
-                    </div>
-
                   </div>
 
-                `;
+                </div>
 
-              })
-              .join("")}
+              `;
 
-          </div>
-
-
-          <div
-            id="final-reading-action"
-            class="action-row"
-            style="display:none;"
-          >
-
-            <button
-              id="begin-quiz"
-              class="primary-btn"
-              type="button"
-            >
-
-              Proceed to Final Quiz
-
-            </button>
-
-          </div>
-
-
-          <div
-            id="article-message"
-          ></div>
-
+            })
+            .join("")}
 
         </div>
 
-      </article>
 
-    `;
+        <div
+          id="final-reading-action"
+          class="action-row"
+          style="display:none;"
+        >
 
+          <button
+            id="begin-quiz"
+            class="primary-btn"
+            type="button"
+          >
 
-    /*
-      GAME BUTTONS
-    */
+            Proceed to Final Quiz
 
-    document
-      .querySelectorAll(
-        ".interactive-game"
-      )
-      .forEach(
-        gameContainer => {
+          </button>
 
-          const position =
-            Number(
-              gameContainer.dataset
-                .gamePosition
-            );
+        </div>
 
 
-          const game =
-            gameMap[position];
+        <div
+          id="article-message"
+        ></div>
 
 
-          if (!game) {
-            return;
-          }
+      </div>
 
+    </article>
 
-          const input =
-            gameContainer.querySelector(
-              ".game-answer"
-            );
+  `;
 
 
-          const button =
-            gameContainer.querySelector(
-              ".game-submit"
-            );
+  /*
+    GAME BUTTONS
+  */
 
+  document
+    .querySelectorAll(
+      ".interactive-game"
+    )
+    .forEach(
+      gameContainer => {
 
-          const message =
-            gameContainer.querySelector(
-              ".game-message"
-            );
-
-
-          if (
-            !input ||
-            !button ||
-            !message
-          ) {
-
-            return;
-
-          }
-
-
-          button.addEventListener(
-            "click",
-            () => {
-
-              const userAnswer =
-                input.value
-                  .trim()
-                  .toLowerCase();
-
-
-              const correctAnswer =
-                String(
-                  game.answer || ""
-                )
-                  .trim()
-                  .toLowerCase();
-
-
-              if (!userAnswer) {
-
-                message.innerHTML =
-                  setMessage(
-                    "Please enter your answer first."
-                  );
-
-                return;
-
-              }
-
-
-              if (
-                userAnswer ===
-                correctAnswer
-              ) {
-
-                /*
-                  CONFETTI 🎉
-                  Plays immediately when
-                  the game answer is correct.
-                */
-
-                showConfetti();
-
-
-                message.innerHTML =
-                  setMessage(
-                    "Correct! Great job.",
-                    "success"
-                  );
-
-
-                input.disabled =
-                  true;
-
-                button.disabled =
-                  true;
-
-
-                /*
-                  Unlock the next section.
-
-                  IMPORTANT:
-                  We don't just reveal one paragraph.
-                  We reveal everything until the next game.
-                */
-
-                let nextGamePosition =
-                  null;
-
-
-                const gamePositions =
-                  Object.keys(
-                    gameMap
-                  )
-                    .map(Number)
-                    .sort(
-                      (a, b) => a - b
-                    );
-
-
-                for (
-                  const gamePosition
-                  of gamePositions
-                ) {
-
-                  if (
-                    gamePosition >
-                    position
-                  ) {
-
-                    nextGamePosition =
-                      gamePosition;
-
-                    break;
-
-                  }
-
-                }
-
-
-                /*
-                  If there is another game,
-                  reveal all paragraphs up to
-                  and including the paragraph
-                  containing that next game.
-                */
-
-                const revealUntil =
-                  nextGamePosition
-                    ? nextGamePosition
-                    : totalParagraphs;
-
-
-                for (
-                  let paragraphNumber =
-                    position + 1;
-                  paragraphNumber <=
-                    revealUntil;
-                  paragraphNumber++
-                ) {
-
-                  const paragraph =
-                    document.querySelector(
-                      `.article-step[data-paragraph="${paragraphNumber}"]`
-                    );
-
-
-                  if (!paragraph) {
-                    continue;
-                  }
-
-
-                  paragraph.classList.remove(
-                    "locked-content"
-                  );
-
-
-                  paragraph
-                    .removeAttribute(
-                      "data-locked"
-                    );
-
-
-                  const overlay =
-                    paragraph.querySelector(
-                      ".locked-overlay"
-                    );
-
-
-                  if (overlay) {
-
-                    overlay.remove();
-
-                  }
-
-
-                  const blurred =
-                    paragraph.querySelector(
-                      ".locked-blur"
-                    );
-
-
-                  if (blurred) {
-
-                    blurred.classList.remove(
-                      "locked-blur"
-                    );
-
-                  }
-
-                }
-
-
-                /*
-                  Scroll to the next unlocked
-                  content.
-                */
-
-                const nextSection =
-                  document.querySelector(
-                    `.article-step[data-paragraph="${position + 1}"]`
-                  );
-
-
-                if (nextSection) {
-
-                  setTimeout(() => {
-
-                    nextSection.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start"
-                    });
-
-                  }, 150);
-
-                }
-
-
-                /*
-                  Check whether any unanswered
-                  games remain.
-                */
-
-                const remainingGames =
-                  Array.from(
-                    document.querySelectorAll(
-                      ".interactive-game"
-                    )
-                  ).some(
-                    container => {
-
-                      const gameInput =
-                        container.querySelector(
-                          ".game-answer"
-                        );
-
-
-                      return (
-                        gameInput &&
-                        !gameInput.disabled
-                      );
-
-                    }
-                  );
-
-
-                /*
-                  All games completed.
-                */
-
-                if (!remainingGames) {
-
-                  const finalAction =
-                    document.querySelector(
-                      "#final-reading-action"
-                    );
-
-
-                  if (finalAction) {
-
-                    finalAction.style.display =
-                      "flex";
-
-                  }
-
-                }
-
-              } else {
-
-                message.innerHTML =
-                  setMessage(
-                    "Not quite. Try again."
-                  );
-
-              }
-
-            }
+        const position =
+          Number(
+            gameContainer.dataset
+              .gamePosition
           );
 
+
+        const game =
+          gameMap[position];
+
+
+        if (!game) {
+          return;
         }
-      );
 
 
-    /*
-      FINAL QUIZ BUTTON
-    */
-
-    const quizButton =
-      document.querySelector(
-        "#begin-quiz"
-      );
+        const input =
+          gameContainer.querySelector(
+            ".game-answer"
+          );
 
 
-    if (quizButton) {
+        const button =
+          gameContainer.querySelector(
+            ".game-submit"
+          );
 
-      quizButton.addEventListener(
-        "click",
-        () => {
 
-          renderQuiz(article);
+        const message =
+          gameContainer.querySelector(
+            ".game-message"
+          );
+
+
+        if (
+          !input ||
+          !button ||
+          !message
+        ) {
+
+          return;
 
         }
-      );
 
-    }
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            const userAnswer =
+              input.value
+                .trim()
+                .toLowerCase();
+
+
+            const correctAnswer =
+              String(
+                game.answer || ""
+              )
+                .trim()
+                .toLowerCase();
+
+
+            if (!userAnswer) {
+
+              message.innerHTML =
+                setMessage(
+                  "Please enter your answer first."
+                );
+
+              return;
+
+            }
+
+
+            if (
+              userAnswer ===
+              correctAnswer
+            ) {
+
+              message.innerHTML =
+                setMessage(
+                  "Correct! Great job.",
+                  "success"
+                );
+
+
+              input.disabled =
+                true;
+
+              button.disabled =
+                true;
+
+
+              /*
+                Unlock the next section.
+
+                IMPORTANT:
+                We don't just reveal one paragraph.
+                We reveal everything until the next game.
+              */
+
+              let nextGamePosition =
+                null;
+
+
+              const gamePositions =
+                Object.keys(
+                  gameMap
+                )
+                  .map(Number)
+                  .sort(
+                    (a, b) => a - b
+                  );
+
+
+              for (
+                const gamePosition
+                of gamePositions
+              ) {
+
+                if (
+                  gamePosition >
+                  position
+                ) {
+
+                  nextGamePosition =
+                    gamePosition;
+
+                  break;
+
+                }
+
+              }
+
+
+              /*
+                If there is another game,
+                reveal all paragraphs up to
+                and including the paragraph
+                containing that next game.
+              */
+
+              const revealUntil =
+                nextGamePosition
+                  ? nextGamePosition
+                  : totalParagraphs;
+
+
+              for (
+                let paragraphNumber =
+                  position + 1;
+                paragraphNumber <=
+                  revealUntil;
+                paragraphNumber++
+              ) {
+
+                const paragraph =
+                  document.querySelector(
+                    `.article-step[data-paragraph="${paragraphNumber}"]`
+                  );
+
+
+                if (!paragraph) {
+                  continue;
+                }
+
+
+                paragraph.classList.remove(
+                  "locked-content"
+                );
+
+
+                paragraph
+                  .removeAttribute(
+                    "data-locked"
+                  );
+
+
+                const overlay =
+                  paragraph.querySelector(
+                    ".locked-overlay"
+                  );
+
+
+                if (overlay) {
+
+                  overlay.remove();
+
+                }
+
+
+                const blurred =
+                  paragraph.querySelector(
+                    ".locked-blur"
+                  );
+
+
+                if (blurred) {
+
+                  blurred.classList.remove(
+                    "locked-blur"
+                  );
+
+                }
+
+              }
+
+
+              /*
+                Scroll to the next unlocked
+                content.
+              */
+
+              const nextSection =
+                document.querySelector(
+                  `.article-step[data-paragraph="${position + 1}"]`
+                );
+
+
+              if (nextSection) {
+
+                setTimeout(() => {
+
+                  nextSection.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                  });
+
+                }, 150);
+
+              }
+
+
+              /*
+                Check whether any unanswered
+                games remain.
+              */
+
+              const remainingGames =
+                Array.from(
+                  document.querySelectorAll(
+                    ".interactive-game"
+                  )
+                ).some(
+                  container => {
+
+                    const gameInput =
+                      container.querySelector(
+                        ".game-answer"
+                      );
+
+
+                    return (
+                      gameInput &&
+                      !gameInput.disabled
+                    );
+
+                  }
+                );
+
+
+              /*
+                All games completed.
+              */
+
+              if (!remainingGames) {
+
+                const finalAction =
+                  document.querySelector(
+                    "#final-reading-action"
+                  );
+
+
+                if (finalAction) {
+
+                  finalAction.style.display =
+                    "flex";
+
+                }
+
+              }
+
+            } else {
+
+              message.innerHTML =
+                setMessage(
+                  "Not quite. Try again."
+                );
+
+            }
+
+          }
+        );
+
+      }
+    );
+
+
+  /*
+    FINAL QUIZ BUTTON
+  */
+
+  const quizButton =
+    document.querySelector(
+      "#begin-quiz"
+    );
+
+
+  if (quizButton) {
+
+    quizButton.addEventListener(
+      "click",
+      () => {
+
+        renderQuiz(article);
+
+      }
+    );
 
   }
+
+}
 
 
   /* =========================================================
