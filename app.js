@@ -2474,6 +2474,7 @@ function renderArticleWithGames(article) {
 
 
 playSound("complete.mp3");
+showConfetti();    
 
 await renderResult({
   ...responseData,
