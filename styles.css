@@ -1101,3 +1101,42 @@ th {
   background: #fbe8e8;
   border-color: #d9b5b5;
 }
+/* Researcher Portal - compact image preview */
+.article-image-preview-wrap {
+  margin-top: 12px;
+}
+
+.article-image-preview {
+  width: 100%;
+  max-width: 280px;
+  height: 150px;
+  margin-top: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f7f7f7;
+}
+
+.article-image-preview img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.article-image-preview .notice {
+  margin: 0;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 15px;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  .article-image-preview {
+    max-width: 100%;
+    height: 120px;
+  }
+}
