@@ -2473,15 +2473,16 @@ function renderArticleWithGames(article) {
       );
 
 
-      await renderResult({
+playSound("complete.mp3");
 
-        ...responseData,
+await renderResult({
 
-        submittedAt:
-          new Date().toISOString()
+  ...responseData,
 
-      });
+  submittedAt:
+    new Date().toISOString()
 
+});
 
     } catch (error) {
 
