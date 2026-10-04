@@ -696,3 +696,348 @@ th {
     opacity: 0;
   }
 }
+/* =========================================================
+   NEWSQUEST BOOK READER
+========================================================= */
+
+.newsquest-book {
+  width: 100%;
+}
+
+.book-shell {
+  width: 100%;
+  max-width: 850px;
+  margin: 0 auto;
+}
+
+.book-page-area {
+  position: relative;
+  width: 100%;
+  min-height: 680px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #fdfcf8;
+  border: 1px solid rgba(0,0,0,.08);
+  box-shadow: 0 16px 45px rgba(0,0,0,.08);
+}
+
+.nq-page {
+  display: none;
+  width: 100%;
+  min-height: 680px;
+  box-sizing: border-box;
+  background:
+    linear-gradient(
+      to right,
+      rgba(0,0,0,.035),
+      transparent 8%,
+      transparent 92%,
+      rgba(0,0,0,.035)
+    );
+}
+
+.nq-page-active {
+  display: block;
+  animation: newsquestPageIn .4s ease;
+}
+
+@keyframes newsquestPageIn {
+
+  from {
+    opacity: 0;
+    transform: translateX(35px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+}
+
+.nq-page-inner {
+  position: relative;
+  min-height: 680px;
+  box-sizing: border-box;
+  padding: 42px 55px 35px 65px;
+}
+
+.nq-page-inner::before {
+  content: "";
+  position: absolute;
+  left: 35px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(0,0,0,.08);
+}
+
+
+/* PAGE HEADER */
+
+.nq-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.nq-publication {
+  color: #2e7d32;
+}
+
+.nq-page-number {
+  color: #777;
+}
+
+
+/* ARTICLE */
+
+.nq-article-kicker {
+  margin-bottom: 10px;
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+
+  color: #2e7d32;
+}
+
+.nq-title {
+  max-width: 720px;
+  margin: 0 0 25px;
+
+  font-family: Georgia, serif;
+  font-size: clamp(30px, 5vw, 46px);
+  line-height: 1.08;
+  letter-spacing: -1px;
+}
+
+.nq-hero-image {
+  display: block;
+
+  width: 100%;
+  max-height: 330px;
+
+  object-fit: cover;
+
+  margin-bottom: 28px;
+
+  border-radius: 5px;
+}
+
+.nq-continuation {
+  margin-bottom: 22px;
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+
+  color: #2e7d32;
+}
+
+.nq-story-content {
+  max-width: 720px;
+}
+
+.nq-paragraph {
+  margin: 0 0 22px;
+
+  font-family: Georgia, serif;
+  font-size: 18px;
+  line-height: 1.85;
+
+  color: #262626;
+}
+
+.nq-dropcap:first-letter {
+  float: left;
+
+  margin-right: 8px;
+
+  font-size: 58px;
+  line-height: .8;
+
+  font-weight: 700;
+}
+
+
+/* GAME */
+
+.nq-game-break {
+  max-width: 680px;
+  margin-top: 35px;
+}
+
+.nq-game-line {
+  width: 100%;
+  height: 2px;
+
+  margin-bottom: 18px;
+
+  background: #222;
+}
+
+.nq-game-label {
+  margin-bottom: 15px;
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+
+  color: #2e7d32;
+}
+
+.nq-game-wrapper {
+  margin: 0;
+}
+
+
+/* REMOVE THE OLD CARD LOOK FROM GAMES */
+
+.nq-game-wrapper.card {
+  box-shadow: none;
+}
+
+
+/* PAGE FOOTER */
+
+.nq-page-footer {
+  display: flex;
+  justify-content: space-between;
+
+  margin-top: 45px;
+  padding-top: 16px;
+
+  border-top: 1px solid rgba(0,0,0,.1);
+
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+
+  color: #777;
+}
+
+
+/* FINAL PAGE */
+
+.nq-final-action {
+  max-width: 680px;
+  margin-top: 40px;
+}
+
+.nq-final-action .primary-btn {
+  margin-top: 10px;
+}
+
+
+/* NAVIGATION */
+
+.nq-book-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+
+  max-width: 850px;
+  margin: 15px auto 0;
+}
+
+.nq-nav-button {
+  min-height: 44px;
+
+  padding: 9px 18px;
+
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 7px;
+
+  background: #fff;
+  color: #222;
+
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.nq-nav-button:hover {
+  border-color: #2e7d32;
+}
+
+.nq-nav-button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.nq-nav-primary {
+  border-color: #2e7d32;
+  background: #eef6ef;
+}
+
+.nq-swipe-label {
+  flex: 1;
+
+  text-align: center;
+
+  font-size: 12px;
+  color: #777;
+}
+
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+
+  .book-page-area,
+  .nq-page {
+    min-height: 620px;
+  }
+
+  .nq-page-inner {
+    min-height: 620px;
+
+    padding:
+      28px
+      25px
+      28px
+      42px;
+  }
+
+  .nq-page-inner::before {
+    left: 22px;
+  }
+
+  .nq-title {
+    font-size: 30px;
+  }
+
+  .nq-paragraph {
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  .nq-page-header {
+    margin-bottom: 22px;
+  }
+
+  .nq-book-navigation {
+    gap: 8px;
+  }
+
+  .nq-swipe-label {
+    font-size: 10px;
+  }
+
+  .nq-nav-button {
+    padding: 8px 12px;
+  }
+
+}
