@@ -556,6 +556,8 @@ th {
   }
 }
 
+/* NEWSQUEST LOCKED ARTICLE SECTION */
+
 .article-step {
   position: relative;
 }
@@ -563,53 +565,107 @@ th {
 .locked-content {
   position: relative;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
+/* Keep the article visible but unreadable */
 .locked-blur {
-  filter: blur(7px);
-  opacity: 0.55;
+  filter: blur(6px);
+  opacity: 0.42;
   user-select: none;
   pointer-events: none;
+  transform: scale(1.01);
 }
 
+/* Soft editorial fade */
 .locked-overlay {
   position: absolute;
   inset: 0;
   z-index: 10;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 30px;
+
+  padding: 40px 24px;
+
   text-align: center;
   pointer-events: none;
+
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.72) 48%,
+      rgba(255, 255, 255, 0.96) 100%
+    );
 }
 
+/* Small editorial-style lock area */
 .locked-message {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  max-width: 360px;
-  padding: 22px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+
+  gap: 7px;
+
+  max-width: 330px;
+
+  padding: 18px 24px;
+
+  background: rgba(255, 255, 255, 0.88);
+
+  border-top: 2px solid #2e7d32;
+
+  border-bottom: 1px solid rgba(46, 125, 50, 0.18);
+
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+
+  backdrop-filter: blur(6px);
 }
 
+/* Small lock */
 .locked-icon {
-  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+
+  margin-bottom: 3px;
+
+  border-radius: 50%;
+
+  background: #eef6ef;
+
+  color: #2e7d32;
+
+  font-size: 16px;
 }
 
+/* Main label */
 .locked-message strong {
-  font-size: 18px;
+  font-size: 13px;
+
+  font-weight: 700;
+
+  letter-spacing: 1.4px;
+
+  text-transform: uppercase;
+
+  color: #222;
 }
 
+/* Supporting text */
 .locked-message span {
-  font-size: 14px;
-  line-height: 1.5;
-  opacity: 0.75;
+  max-width: 280px;
+
+  font-size: 13px;
+
+  line-height: 1.55;
+
+  color: #666;
 }
 /* CONFETTI */
 
