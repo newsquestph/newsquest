@@ -962,9 +962,10 @@
     }
   }
 
-  // =========================================================
-  // ARTICLE EDITOR
-  // =========================================================
+// =========================================================
+// ARTICLE EDITOR
+// =========================================================
+
 async function renderEditor() {
 
   const container =
@@ -975,12 +976,21 @@ async function renderEditor() {
   container.innerHTML = `
     <section class="card editor-section">
 
+      <div class="eyebrow">
+        Editorial workspace
+      </div>
+
       <h3>
-        Article and quiz editor
+        Article Builder
       </h3>
 
+      <p class="small">
+        Build your article page by page.
+        Each page can contain up to 5 paragraphs.
+      </p>
+
       <div class="notice">
-        Loading articles...
+        Minimum 2 pages · Maximum 5 paragraphs per page
       </div>
 
     </section>
@@ -1010,7 +1020,7 @@ async function renderEditor() {
     );
 
 
-    container.innerHTML =
+    const editors =
       Object.keys(
         SET_ARTICLES
       )
@@ -1030,265 +1040,146 @@ async function renderEditor() {
 
 
             /*
-             * PARAGRAPHS
+             * BUILD PAGES
              *
-             * Use the new paragraphs array
-             * when available.
+             * New articles use article.pages.
              *
-             * Otherwise convert the old
-             * article structure.
+             * Old articles are converted into
+             * pages automatically.
              */
 
-            let paragraphs =
-              Array.isArray(
-                article.paragraphs
-              )
-                ? [
-                    ...article.paragraphs
-                  ]
-                : [];
-
-
-            /*
-             * Convert old sections
-             * into paragraphs.
-             */
-
-            if (
-              paragraphs.length === 0 &&
-              Array.isArray(
-                article.sections
-              )
-            ) {
-
-              article.sections.forEach(
-                section => {
-
-                  if (
-                    Array.isArray(
-                      section.paragraphs
-                    )
-                  ) {
-
-                    section.paragraphs
-                      .forEach(
-                        paragraph => {
-
-                          if (
-                            String(
-                              paragraph
-                            ).trim()
-                          ) {
-
-                            paragraphs.push(
-                              paragraph
-                            );
-
-                          }
-
-                        }
-                      );
-
-                  }
-
-                }
+            let pages =
+              buildArticlePages(
+                article
               );
-
-            }
-
-
-            /*
-             * Convert old body if needed.
-             */
-
-            if (
-              paragraphs.length === 0 &&
-              article.body
-            ) {
-
-              paragraphs =
-                String(
-                  article.body
-                )
-                  .split(
-                    /\n\s*\n/
-                  )
-                  .map(
-                    paragraph =>
-                      paragraph.trim()
-                  )
-                  .filter(Boolean);
-
-            }
-
-
-            /*
-             * Always start with one
-             * editable paragraph.
-             */
-
-            if (
-              paragraphs.length === 0
-            ) {
-
-              paragraphs = [
-                ""
-              ];
-
-            }
 
 
             /*
              * GAMES
+             *
+             * New system:
+             *
+             * afterPage
+             *
+             * Old system:
+             *
+             * position
+             *
+             * is converted automatically.
              */
 
             let games =
               Array.isArray(
                 article.games
               )
-                ? [
-                    ...article.games
-                  ]
+                ? article.games.map(
+                    game => {
+
+                      let afterPage =
+                        Number(
+                          game.afterPage
+                        );
+
+
+                      /*
+                       * Convert old paragraph
+                       * position to page.
+                       */
+
+                      if (
+                        !Number.isInteger(
+                          afterPage
+                        )
+                      ) {
+
+                        const position =
+                          Number(
+                            game.position
+                          ) || 1;
+
+                        afterPage =
+                          getPageForParagraph(
+                            pages,
+                            position
+                          );
+
+                      }
+
+
+                      return {
+
+                        afterPage,
+
+                        type:
+                          game.type ||
+                          "jumbled",
+
+                        answer:
+                          game.answer ||
+                          "",
+
+                        scrambled:
+                          game.scrambled ||
+                          "",
+
+                        hint:
+                          game.hint ||
+                          "",
+
+                        images:
+                          Array.isArray(
+                            game.images
+                          )
+                            ? game.images
+                            : [
+                                "",
+                                "",
+                                "",
+                                ""
+                              ],
+
+                        clues:
+                          Array.isArray(
+                            game.clues
+                          )
+                            ? game.clues
+                            : [],
+
+                        crosswordAnswers:
+                          Array.isArray(
+                            game.crosswordAnswers
+                          )
+                            ? game.crosswordAnswers
+                            : []
+
+                      };
+
+                    }
+                  )
                 : [];
 
 
             /*
-             * Convert games from the
-             * previous sections system.
-             */
-
-            if (
-              games.length === 0 &&
-              Array.isArray(
-                article.sections
-              )
-            ) {
-
-              let paragraphPosition = 0;
-
-              article.sections.forEach(
-                (section, index) => {
-
-                  const sectionParagraphs =
-                    Array.isArray(
-                      section.paragraphs
-                    )
-                      ? section.paragraphs
-                      : [];
-
-                  paragraphPosition +=
-                    sectionParagraphs.length;
-
-
-                  if (
-                    section.game &&
-                    index <
-                      article.sections.length - 1
-                  ) {
-
-                    games.push({
-
-                      position:
-                        paragraphPosition,
-
-                      type:
-                        section.game.type ||
-                        "",
-
-                      answer:
-                        section.game.answer ||
-                        "",
-
-                      scrambled:
-                        section.game.scrambled ||
-                        "",
-
-                      hint:
-                        section.game.hint ||
-                        "",
-
-                      images:
-                        section.game.images ||
-                        [],
-
-                      clues:
-                        section.game.clues ||
-                        [],
-
-                      crosswordAnswers:
-                        section.game.crosswordAnswers ||
-                        []
-
-                    });
-
-                  }
-
-                }
-              );
-
-            }
-
-
-            /*
-             * Make sure game positions
-             * are valid.
+             * Keep games inside valid
+             * page range.
              */
 
             games =
               games.map(
                 game => ({
 
-                  position:
+                  ...game,
+
+                  afterPage:
                     Math.min(
                       Math.max(
                         Number(
-                          game.position || 1
-                        ),
+                          game.afterPage
+                        ) || 1,
                         1
                       ),
-                      Math.max(
-                        paragraphs.length - 1,
-                        1
-                      )
-                    ),
-
-                  type:
-                    game.type || "",
-
-                  answer:
-                    game.answer || "",
-
-                  scrambled:
-                    game.scrambled || "",
-
-                  hint:
-                    game.hint || "",
-
-                  images:
-                    Array.isArray(
-                      game.images
+                      pages.length
                     )
-                      ? game.images
-                      : [
-                          "",
-                          "",
-                          "",
-                          ""
-                        ],
-
-                  clues:
-                    Array.isArray(
-                      game.clues
-                    )
-                      ? game.clues
-                      : [],
-
-                  crosswordAnswers:
-                    Array.isArray(
-                      game.crosswordAnswers
-                    )
-                      ? game.crosswordAnswers
-                      : []
 
                 })
               );
@@ -1303,160 +1194,208 @@ async function renderEditor() {
                 )}"
               >
 
-                <div class="eyebrow">
-                  Set ${setNumber}
-                </div>
+                <!-- =====================================
+                     ARTICLE HEADER
+                ====================================== -->
 
-                <h3>
-                  ${escapeHTML(
-                    articleName(
-                      articleId
-                    )
-                  )}
-                </h3>
+                <div class="article-editor-heading">
 
+                  <div>
 
-                <!-- TITLE -->
+                    <div class="eyebrow">
+                      Set ${escapeHTML(
+                        setNumber
+                      )}
+                    </div>
 
-                <div class="form-group">
+                    <h3>
+                      ${escapeHTML(
+                        articleName(
+                          articleId
+                        )
+                      )}
+                    </h3>
 
-                  <label>
-                    Title
-                  </label>
+                  </div>
 
-                  <input
-                    name="title"
-                    required
-                    value="${escapeAttr(
-                      article.title || ""
-                    )}"
-                  >
-
-                </div>
-
-
-                <!-- IMAGE -->
-
-                <div class="form-group">
-
-                  <label>
-                    Image URL
-                  </label>
-
-                  <input
-                    name="image"
-                    required
-                    value="${escapeAttr(
-                      article.image || ""
-                    )}"
-                  >
+                  <div class="editor-status">
+                    ${pages.length} pages
+                  </div>
 
                 </div>
 
 
-                <!-- PARAGRAPHS -->
+                <!-- =====================================
+                     ARTICLE INFORMATION
+                ====================================== -->
 
-                <div class="form-group">
+                <section class="builder-section">
 
-                  <h3>
-                    Article Paragraphs
-                  </h3>
+                  <div class="builder-section-heading">
 
-                  <p class="small">
-                    Add as many paragraphs as your
-                    approved article needs.
-                  </p>
+                    <div>
+
+                      <div class="builder-label">
+                        STORY INFORMATION
+                      </div>
+
+                      <p class="small">
+                        Basic information for this article.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+
+                  <div class="form-group">
+
+                    <label>
+                      Article title
+                    </label>
+
+                    <input
+                      name="title"
+                      required
+                      value="${escapeAttr(
+                        article.title || ""
+                      )}"
+                      placeholder="Enter the article title"
+                    >
+
+                  </div>
+
+
+                  <div class="form-group">
+
+                    <label>
+                      Cover image URL
+                    </label>
+
+                    <input
+                      name="image"
+                      value="${escapeAttr(
+                        article.image || ""
+                      )}"
+                      placeholder="Paste image URL"
+                    >
+
+                  </div>
+
+                </section>
+
+
+                <!-- =====================================
+                     ARTICLE PAGES
+                ====================================== -->
+
+                <section class="builder-section">
+
+                  <div class="builder-section-heading">
+
+                    <div>
+
+                      <div class="builder-label">
+                        ARTICLE PAGES
+                      </div>
+
+                      <h3>
+                        Build the story
+                      </h3>
+
+                      <p class="small">
+                        Each page can contain up to
+                        5 paragraphs. There is no minimum
+                        number of paragraphs per page.
+                      </p>
+
+                    </div>
+
+                  </div>
+
 
                   <div
-                    class="paragraph-editor"
-                    data-paragraphs
+                    class="page-builder"
+                    data-pages
                   >
 
-                    ${paragraphs
+                    ${pages
                       .map(
                         (
-                          paragraph,
-                          index
-                        ) => `
-
-                          <div
-                            class="paragraph-item"
-                            data-paragraph-index="${index}"
-                          >
-
-                            <div
-                              style="
-                                display:flex;
-                                justify-content:space-between;
-                                align-items:center;
-                                gap:10px;
-                                margin-bottom:6px;
-                              "
-                            >
-
-                              <strong>
-                                Paragraph ${
-                                  index + 1
-                                }
-                              </strong>
-
-                              <button
-                                type="button"
-                                class="secondary-btn"
-                                data-remove-paragraph
-                              >
-                                Remove
-                              </button>
-
-                            </div>
-
-                            <textarea
-                              name="paragraph"
-                              rows="6"
-                              required
-                            >${escapeHTML(
-                              paragraph
-                            )}</textarea>
-
-                          </div>
-
-                        `
+                          page,
+                          pageIndex
+                        ) =>
+                          renderArticlePage(
+                            page,
+                            pageIndex
+                          )
                       )
                       .join("")}
 
                   </div>
 
 
-                  <div class="action-row">
+                  <!-- ONE ADD PAGE BUTTON -->
+
+                  <div class="add-page-area">
 
                     <button
                       type="button"
-                      class="secondary-btn"
-                      data-add-paragraph
+                      class="add-page-button"
+                      data-add-page
                     >
-                      + Add Paragraph
+
+                      <span class="add-page-icon">
+                        +
+                      </span>
+
+                      <span>
+                        NEW STORY PAGE
+                      </span>
+
                     </button>
+
+                    <p class="small">
+                      Add another page to continue
+                      your article.
+                    </p>
 
                   </div>
 
-                </div>
+                </section>
 
 
-                <!-- GAMES -->
+                <!-- =====================================
+                     READER CHALLENGES
+                ====================================== -->
 
-                <div class="form-group">
+                <section class="builder-section">
 
-                  <h3>
-                    Interactive Games
-                  </h3>
+                  <div class="builder-section-heading">
 
-                  <p class="small">
-                    You decide how many games there
-                    are and where each game appears.
-                  </p>
+                    <div>
+
+                      <div class="builder-label">
+                        READER CHALLENGES
+                      </div>
+
+                      <h3>
+                        Interactive moments
+                      </h3>
+
+                      <p class="small">
+                        Challenges are separate from
+                        article pages. Choose the page
+                        after which each challenge appears.
+                      </p>
+
+                    </div>
+
+                  </div>
+
 
                   <div
-                    class="game-editor"
+                    class="challenge-builder"
                     data-games
                   >
 
@@ -1471,16 +1410,34 @@ async function renderEditor() {
                                 renderGameEditor(
                                   game,
                                   gameIndex,
-                                  paragraphs.length
+                                  pages.length
                                 )
                             )
                             .join("")
                         : `
                           <div
-                            class="notice"
+                            class="empty-challenge"
                             data-no-games
                           >
-                            No interactive games added yet.
+
+                            <div class="empty-challenge-mark">
+                              +
+                            </div>
+
+                            <div>
+
+                              <strong>
+                                No challenges yet
+                              </strong>
+
+                              <p>
+                                Add a game when you want
+                                an interactive break in
+                                the reading experience.
+                              </p>
+
+                            </div>
+
                           </div>
                         `
                     }
@@ -1488,178 +1445,218 @@ async function renderEditor() {
                   </div>
 
 
-                  <div class="action-row">
+                  <button
+                    type="button"
+                    class="add-challenge-button"
+                    data-add-game
+                  >
 
-                    <button
-                      type="button"
-                      class="secondary-btn"
-                      data-add-game
-                    >
-                      + Add Game
-                    </button>
+                    + ADD READER CHALLENGE
+
+                  </button>
+
+                </section>
+
+
+                <!-- =====================================
+                     FINAL QUIZ
+                ====================================== -->
+
+                <section class="builder-section">
+
+                  <div class="builder-section-heading">
+
+                    <div>
+
+                      <div class="builder-label">
+                        FINAL EDITION
+                      </div>
+
+                      <h3>
+                        Final Quiz
+                      </h3>
+
+                      <p class="small">
+                        Every article must contain
+                        exactly 5 final quiz questions.
+                      </p>
+
+                    </div>
 
                   </div>
 
-                </div>
+
+                  ${Array.from(
+                    { length: 5 },
+                    (_, index) => {
+
+                      const question =
+                        article.questions?.[
+                          index
+                        ] || {
+
+                          text: "",
+
+                          choices: [
+                            "",
+                            "",
+                            "",
+                            ""
+                          ],
+
+                          correct: 0
+
+                        };
 
 
-                <!-- FINAL QUIZ -->
+                      return `
 
-                <h3>
-                  Exactly five questions
-                </h3>
+                        <div class="editor-question">
 
+                          <div class="question-number">
+                            0${index + 1}
+                          </div>
 
-                ${Array.from(
-                  { length: 5 },
-                  (_, index) => {
+                          <div class="question-content">
 
-                    const question =
-                      article.questions?.[
-                        index
-                      ] || {
-
-                        text: "",
-
-                        choices: [
-                          "",
-                          "",
-                          "",
-                          ""
-                        ],
-
-                        correct: 0
-
-                      };
+                            <strong>
+                              Question ${
+                                index + 1
+                              }
+                            </strong>
 
 
-                    return `
+                            <div class="form-group">
 
-                      <div class="editor-question">
+                              <label>
+                                Question text
+                              </label>
 
-                        <strong>
-                          Question ${
-                            index + 1
-                          }
-                        </strong>
+                              <input
+                                name="q${index}_text"
+                                required
+                                value="${escapeAttr(
+                                  question.text ||
+                                  ""
+                                )}"
+                                placeholder="Write the question"
+                              >
+
+                            </div>
 
 
-                        <div class="form-group">
+                            <div
+                              class="editor-question-grid"
+                            >
 
-                          <label>
-                            Question text
-                          </label>
+                              ${Array.from(
+                                { length: 4 },
+                                (
+                                  _,
+                                  choiceIndex
+                                ) => `
 
-                          <input
-                            name="q${index}_text"
-                            required
-                            value="${escapeAttr(
-                              question.text || ""
-                            )}"
-                          >
+                                  <div class="form-group">
+
+                                    <label>
+                                      Choice ${
+                                        choiceIndex + 1
+                                      }
+                                    </label>
+
+                                    <input
+                                      name="q${index}_choice${choiceIndex}"
+                                      required
+                                      value="${escapeAttr(
+                                        question
+                                          .choices?.[
+                                            choiceIndex
+                                          ] || ""
+                                      )}"
+                                      placeholder="Answer choice"
+                                    >
+
+                                  </div>
+
+                                `
+                              ).join("")}
+
+                            </div>
+
+
+                            <div class="form-group">
+
+                              <label>
+                                Correct answer
+                              </label>
+
+                              <select
+                                name="q${index}_correct"
+                              >
+
+                                ${Array.from(
+                                  { length: 4 },
+                                  (
+                                    _,
+                                    choiceIndex
+                                  ) => `
+
+                                    <option
+                                      value="${choiceIndex}"
+                                      ${
+                                        choiceIndex ===
+                                        Number(
+                                          question.correct
+                                        )
+                                          ? "selected"
+                                          : ""
+                                      }
+                                    >
+                                      Choice ${
+                                        choiceIndex + 1
+                                      }
+                                    </option>
+
+                                  `
+                                ).join("")}
+
+                              </select>
+
+                            </div>
+
+                          </div>
 
                         </div>
 
+                      `;
 
-                        <div
-                          class="editor-question-grid"
-                        >
+                    }
+                  ).join("")}
 
-                          ${Array.from(
-                            { length: 4 },
-                            (_, choiceIndex) => `
-
-                              <div class="form-group">
-
-                                <label>
-                                  Choice ${
-                                    choiceIndex + 1
-                                  }
-                                </label>
-
-                                <input
-                                  name="q${index}_choice${choiceIndex}"
-                                  required
-                                  value="${escapeAttr(
-                                    question
-                                      .choices?.[
-                                        choiceIndex
-                                      ] || ""
-                                  )}"
-                                >
-
-                              </div>
-
-                            `
-                          ).join("")}
-
-                        </div>
+                </section>
 
 
-                        <div class="form-group">
+                <!-- =====================================
+                     SAVE
+                ====================================== -->
 
-                          <label>
-                            Correct answer
-                          </label>
-
-                          <select
-                            name="q${index}_correct"
-                          >
-
-                            ${Array.from(
-                              { length: 4 },
-                              (_, choiceIndex) => `
-
-                                <option
-                                  value="${choiceIndex}"
-                                  ${
-                                    choiceIndex ===
-                                    Number(
-                                      question.correct
-                                    )
-                                      ? "selected"
-                                      : ""
-                                  }
-                                >
-                                  Choice ${
-                                    choiceIndex + 1
-                                  }
-                                </option>
-
-                              `
-                            ).join("")}
-
-                          </select>
-
-                        </div>
-
-                      </div>
-
-                    `;
-
-                  }
-                ).join("")}
-
-
-                <!-- SAVE -->
-
-                <div class="action-row">
+                <div class="builder-save-area">
 
                   <button
-                    class="primary-btn"
+                    class="save-article-button"
                     type="submit"
                   >
-                    Save ${escapeHTML(
-                      articleName(
-                        articleId
-                      )
-                    )}
+
+                    SAVE ARTICLE
+
                   </button>
 
+                  <div
+                    class="save-message"
+                    aria-live="polite"
+                  ></div>
+
                 </div>
-
-
-                <div class="save-message"></div>
 
               </form>
 
@@ -1671,7 +1668,9 @@ async function renderEditor() {
 
 
     /*
+     * ===============================================
      * FORM EVENTS
+     * ===============================================
      */
 
     document
@@ -1700,87 +1699,45 @@ async function renderEditor() {
 
 
           /*
-           * ADD PARAGRAPH
+           * ADD PAGE
            */
 
           form
             .querySelector(
-              "[data-add-paragraph]"
+              "[data-add-page]"
             )
             .addEventListener(
               "click",
               () => {
 
-                const container =
+                const pagesContainer =
                   form.querySelector(
-                    "[data-paragraphs]"
+                    "[data-pages]"
                   );
 
-                const index =
-                  container.querySelectorAll(
-                    ".paragraph-item"
+                const pageIndex =
+                  pagesContainer.querySelectorAll(
+                    ".article-page"
                   ).length;
 
 
-                const item =
-                  document.createElement(
-                    "div"
-                  );
-
-                item.className =
-                  "paragraph-item";
-
-                item.dataset.paragraphIndex =
-                  index;
-
-
-                item.innerHTML = `
-
-                  <div
-                    style="
-                      display:flex;
-                      justify-content:space-between;
-                      align-items:center;
-                      gap:10px;
-                      margin-bottom:6px;
-                    "
-                  >
-
-                    <strong>
-                      Paragraph ${
-                        index + 1
-                      }
-                    </strong>
-
-                    <button
-                      type="button"
-                      class="secondary-btn"
-                      data-remove-paragraph
-                    >
-                      Remove
-                    </button>
-
-                  </div>
-
-                  <textarea
-                    name="paragraph"
-                    rows="6"
-                    required
-                  ></textarea>
-
-                `;
-
-
-                container.appendChild(
-                  item
+                pagesContainer.insertAdjacentHTML(
+                  "beforeend",
+                  renderArticlePage(
+                    {
+                      paragraphs: []
+                    },
+                    pageIndex
+                  )
                 );
 
 
-                updateParagraphLabels(
+                updatePageNumbers(
                   form
                 );
 
-                updateGamePositions(
+
+                updateChallengePageOptions(
                   form
                 );
 
@@ -1789,39 +1746,82 @@ async function renderEditor() {
 
 
           /*
-           * REMOVE PARAGRAPH
+           * PAGE ACTIONS
+           *
+           * Event delegation means
+           * dynamically created buttons
+           * also work.
            */
 
           form
             .querySelector(
-              "[data-paragraphs]"
+              "[data-pages]"
             )
             .addEventListener(
               "click",
               event => {
 
-                const button =
+                /*
+                 * ADD PARAGRAPH
+                 */
+
+                const addParagraph =
                   event.target.closest(
-                    "[data-remove-paragraph]"
-                  );
-
-                if (!button) {
-                  return;
-                }
-
-
-                const items =
-                  form.querySelectorAll(
-                    ".paragraph-item"
+                    "[data-add-paragraph]"
                   );
 
 
                 if (
-                  items.length <= 1
+                  addParagraph
                 ) {
 
-                  alert(
-                    "An article needs at least one paragraph."
+                  const page =
+                    addParagraph.closest(
+                      ".article-page"
+                    );
+
+
+                  if (!page) {
+                    return;
+                  }
+
+
+                  const paragraphs =
+                    page.querySelector(
+                      "[data-paragraphs]"
+                    );
+
+
+                  const count =
+                    paragraphs.querySelectorAll(
+                      ".page-paragraph"
+                    ).length;
+
+
+                  if (
+                    count >= 5
+                  ) {
+
+                    alert(
+                      "This page already has the maximum of 5 paragraphs."
+                    );
+
+                    return;
+
+                  }
+
+
+                  paragraphs.insertAdjacentHTML(
+                    "beforeend",
+                    renderParagraph(
+                      "",
+                      count
+                    )
+                  );
+
+
+                  updatePageParagraphLabels(
+                    page
                   );
 
                   return;
@@ -1829,20 +1829,98 @@ async function renderEditor() {
                 }
 
 
-                button
-                  .closest(
-                    ".paragraph-item"
-                  )
-                  .remove();
+                /*
+                 * REMOVE PARAGRAPH
+                 */
+
+                const removeParagraph =
+                  event.target.closest(
+                    "[data-remove-paragraph]"
+                  );
 
 
-                updateParagraphLabels(
-                  form
-                );
+                if (
+                  removeParagraph
+                ) {
 
-                updateGamePositions(
-                  form
-                );
+                  const page =
+                    removeParagraph.closest(
+                      ".article-page"
+                    );
+
+
+                  if (!page) {
+                    return;
+                  }
+
+
+                  removeParagraph
+                    .closest(
+                      ".page-paragraph"
+                    )
+                    .remove();
+
+
+                  updatePageParagraphLabels(
+                    page
+                  );
+
+                  return;
+
+                }
+
+
+                /*
+                 * REMOVE PAGE
+                 */
+
+                const removePage =
+                  event.target.closest(
+                    "[data-remove-page]"
+                  );
+
+
+                if (
+                  removePage
+                ) {
+
+                  const pages =
+                    form.querySelectorAll(
+                      ".article-page"
+                    );
+
+
+                  if (
+                    pages.length <= 2
+                  ) {
+
+                    alert(
+                      "NewsQuest requires at least 2 article pages."
+                    );
+
+                    return;
+
+                  }
+
+
+                  const page =
+                    removePage.closest(
+                      ".article-page"
+                    );
+
+
+                  page.remove();
+
+
+                  updatePageNumbers(
+                    form
+                  );
+
+                  updateChallengePageOptions(
+                    form
+                  );
+
+                }
 
               }
             );
@@ -1883,22 +1961,30 @@ async function renderEditor() {
                   ).length;
 
 
-                const game =
-                  {
-                    position: 1,
-                    type: "jumbled",
-                    answer: "",
-                    scrambled: "",
-                    hint: "",
-                    images: [
-                      "",
-                      "",
-                      "",
-                      ""
-                    ],
-                    clues: [],
-                    crosswordAnswers: []
-                  };
+                const game = {
+
+                  afterPage: 1,
+
+                  type: "jumbled",
+
+                  answer: "",
+
+                  scrambled: "",
+
+                  hint: "",
+
+                  images: [
+                    "",
+                    "",
+                    "",
+                    ""
+                  ],
+
+                  clues: [],
+
+                  crosswordAnswers: []
+
+                };
 
 
                 gamesContainer.insertAdjacentHTML(
@@ -1907,7 +1993,7 @@ async function renderEditor() {
                     game,
                     gameIndex,
                     form.querySelectorAll(
-                      ".paragraph-item"
+                      ".article-page"
                     ).length
                   )
                 );
@@ -1917,7 +2003,7 @@ async function renderEditor() {
 
 
           /*
-           * REMOVE GAME
+           * GAME ACTIONS
            */
 
           form
@@ -1928,17 +2014,22 @@ async function renderEditor() {
               "click",
               event => {
 
-                const button =
+                const removeGame =
                   event.target.closest(
                     "[data-remove-game]"
                   );
 
-                if (!button) {
+
+                if (
+                  !removeGame
+                ) {
+
                   return;
+
                 }
 
 
-                button
+                removeGame
                   .closest(
                     ".game-item"
                   )
@@ -1949,12 +2040,56 @@ async function renderEditor() {
                   form
                 );
 
+
+                const gamesContainer =
+                  form.querySelector(
+                    "[data-games]"
+                  );
+
+
+                if (
+                  !gamesContainer.querySelector(
+                    ".game-item"
+                  )
+                ) {
+
+                  gamesContainer.innerHTML = `
+
+                    <div
+                      class="empty-challenge"
+                      data-no-games
+                    >
+
+                      <div class="empty-challenge-mark">
+                        +
+                      </div>
+
+                      <div>
+
+                        <strong>
+                          No challenges yet
+                        </strong>
+
+                        <p>
+                          Add a game when you want
+                          an interactive break in
+                          the reading experience.
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                  `;
+
+                }
+
               }
             );
 
 
           /*
-           * CHANGE GAME TYPE
+           * GAME TYPE CHANGE
            */
 
           form
@@ -1982,18 +2117,6 @@ async function renderEditor() {
                   );
 
 
-                const position =
-                  Number(
-                    gameItem.querySelector(
-                      "[data-game-position]"
-                    ).value
-                  );
-
-
-                const type =
-                  event.target.value;
-
-
                 const currentGame =
                   readGameItem(
                     gameItem
@@ -2001,23 +2124,58 @@ async function renderEditor() {
 
 
                 currentGame.type =
-                  type;
+                  event.target.value;
+
+
+                const gameIndex =
+                  Number(
+                    gameItem.dataset.gameIndex
+                  );
 
 
                 gameItem.outerHTML =
                   renderGameEditor(
                     currentGame,
-                    Number(
-                      gameItem.dataset.gameIndex
-                    ),
+                    gameIndex,
                     form.querySelectorAll(
-                      ".paragraph-item"
+                      ".article-page"
                     ).length
                   );
 
               }
             );
 
+
+          /*
+           * PAGE DROPDOWN CHANGE
+           */
+
+          form
+            .querySelector(
+              "[data-games]"
+            )
+            .addEventListener(
+              "change",
+              event => {
+
+                if (
+                  !event.target.matches(
+                    "[data-game-page]"
+                  )
+                ) {
+
+                  return;
+
+                }
+
+                /*
+                 * Nothing else needed here.
+                 * The selected page is read
+                 * when the article is saved.
+                 */
+
+              }
+            );
 
         }
       );
@@ -2048,17 +2206,1301 @@ async function renderEditor() {
 
 
 /* =========================================================
+   BUILD ARTICLE PAGES
+   ========================================================= */
+
+function buildArticlePages(
+  article
+) {
+
+  /*
+   * New page structure
+   */
+
+  if (
+    Array.isArray(
+      article.pages
+    ) &&
+    article.pages.length >= 2
+  ) {
+
+    return article.pages.map(
+      page => ({
+
+        paragraphs:
+          Array.isArray(
+            page.paragraphs
+          )
+            ? page.paragraphs
+                .slice(0, 5)
+                .map(
+                  paragraph =>
+                    String(
+                      paragraph
+                    )
+                )
+            : []
+
+      })
+    );
+
+  }
+
+
+  /*
+   * Old paragraphs
+   */
+
+  let paragraphs =
+    Array.isArray(
+      article.paragraphs
+    )
+      ? [
+          ...article.paragraphs
+        ]
+      : [];
+
+
+  /*
+   * Old sections
+   */
+
+  if (
+    paragraphs.length === 0 &&
+    Array.isArray(
+      article.sections
+    )
+  ) {
+
+    article.sections.forEach(
+      section => {
+
+        if (
+          Array.isArray(
+            section.paragraphs
+          )
+        ) {
+
+          section.paragraphs
+            .forEach(
+              paragraph => {
+
+                if (
+                  String(
+                    paragraph
+                  ).trim()
+                ) {
+
+                  paragraphs.push(
+                    paragraph
+                  );
+
+                }
+
+              }
+            );
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /*
+   * Old body
+   */
+
+  if (
+    paragraphs.length === 0 &&
+    article.body
+  ) {
+
+    paragraphs =
+      String(
+        article.body
+      )
+        .split(
+          /\n\s*\n/
+        )
+        .map(
+          paragraph =>
+            paragraph.trim()
+        )
+        .filter(Boolean);
+
+  }
+
+
+  /*
+   * Create pages with maximum
+   * 5 paragraphs.
+   */
+
+  const pages = [];
+
+  for (
+    let i = 0;
+    i < paragraphs.length;
+    i += 5
+  ) {
+
+    pages.push({
+
+      paragraphs:
+        paragraphs
+          .slice(
+            i,
+            i + 5
+          )
+
+    });
+
+  }
+
+
+  /*
+   * Always guarantee minimum
+   * 2 pages.
+   */
+
+  while (
+    pages.length < 2
+  ) {
+
+    pages.push({
+
+      paragraphs: []
+
+    });
+
+  }
+
+
+  return pages;
+
+}
+
+
+/* =========================================================
+   FIND PAGE FOR OLD PARAGRAPH POSITION
+   ========================================================= */
+
+function getPageForParagraph(
+  pages,
+  paragraphPosition
+) {
+
+  let count = 0;
+
+
+  for (
+    let index = 0;
+    index < pages.length;
+    index++
+  ) {
+
+    count +=
+      pages[index]
+        .paragraphs
+        .length;
+
+
+    if (
+      paragraphPosition <=
+      count
+    ) {
+
+      return index + 1;
+
+    }
+
+  }
+
+
+  return pages.length;
+
+}
+
+
+/* =========================================================
+   RENDER ARTICLE PAGE
+   ========================================================= */
+
+function renderArticlePage(
+  page,
+  pageIndex
+) {
+
+  const paragraphs =
+    Array.isArray(
+      page.paragraphs
+    )
+      ? page.paragraphs.slice(
+          0,
+          5
+        )
+      : [];
+
+
+  return `
+
+    <article
+      class="article-page"
+      data-page-index="${pageIndex}"
+    >
+
+      <div class="article-page-top">
+
+        <div>
+
+          <span class="page-label">
+            PAGE
+          </span>
+
+          <strong
+            data-page-number
+          >
+            ${String(
+              pageIndex + 1
+            ).padStart(
+              2,
+              "0"
+            )}
+          </strong>
+
+        </div>
+
+
+        ${
+          pageIndex >= 2
+            ? `
+              <button
+                type="button"
+                class="page-remove-button"
+                data-remove-page
+              >
+                Remove page
+              </button>
+            `
+            : ""
+        }
+
+      </div>
+
+
+      <div
+        class="page-paragraphs"
+        data-paragraphs
+      >
+
+        ${
+          paragraphs.length
+            ? paragraphs
+                .map(
+                  (
+                    paragraph,
+                    index
+                  ) =>
+                    renderParagraph(
+                      paragraph,
+                      index
+                    )
+                )
+                .join("")
+            : `
+              <div
+                class="empty-page-message"
+              >
+                This page is empty.
+                Add a paragraph when ready.
+              </div>
+            `
+        }
+
+      </div>
+
+
+      <div class="page-actions">
+
+        ${
+          paragraphs.length >= 5
+            ? `
+              <span class="page-limit">
+                5 / 5 paragraphs
+              </span>
+            `
+            : `
+              <button
+                type="button"
+                class="continue-story-button"
+                data-add-paragraph
+              >
+                + CONTINUE STORY
+              </button>
+
+              <span class="page-limit">
+                ${
+                  paragraphs.length
+                } / 5
+              </span>
+            `
+        }
+
+      </div>
+
+    </article>
+
+  `;
+
+}
+
+
+/* =========================================================
+   RENDER PARAGRAPH
+   ========================================================= */
+
+function renderParagraph(
+  paragraph = "",
+  index = 0
+) {
+
+  return `
+
+    <div
+      class="page-paragraph"
+      data-paragraph-index="${index}"
+    >
+
+      <div class="paragraph-heading">
+
+        <span>
+          Paragraph ${
+            index + 1
+          }
+        </span>
+
+        <button
+          type="button"
+          class="paragraph-remove-button"
+          data-remove-paragraph
+        >
+          Remove
+        </button>
+
+      </div>
+
+
+      <textarea
+        name="paragraph"
+        rows="6"
+        placeholder="Continue the story here..."
+      >${escapeHTML(
+        paragraph
+      )}</textarea>
+
+    </div>
+
+  `;
+
+}
+
+
+/* =========================================================
+   UPDATE PAGE NUMBERS
+   ========================================================= */
+
+function updatePageNumbers(
+  form
+) {
+
+  form
+    .querySelectorAll(
+      ".article-page"
+    )
+    .forEach(
+      (
+        page,
+        index
+      ) => {
+
+        page.dataset.pageIndex =
+          index;
+
+
+        const number =
+          page.querySelector(
+            "[data-page-number]"
+          );
+
+
+        if (number) {
+
+          number.textContent =
+            String(
+              index + 1
+            ).padStart(
+              2,
+              "0"
+            );
+
+        }
+
+
+        /*
+         * First 2 pages cannot
+         * be removed.
+         */
+
+        const top =
+          page.querySelector(
+            ".article-page-top"
+          );
+
+
+        if (
+          top &&
+          index < 2
+        ) {
+
+          const remove =
+            top.querySelector(
+              "[data-remove-page]"
+            );
+
+          if (remove) {
+            remove.remove();
+          }
+
+        }
+
+
+        if (
+          top &&
+          index >= 2 &&
+          !top.querySelector(
+            "[data-remove-page]"
+          )
+        ) {
+
+          top.insertAdjacentHTML(
+            "beforeend",
+            `
+              <button
+                type="button"
+                class="page-remove-button"
+                data-remove-page
+              >
+                Remove page
+              </button>
+            `
+          );
+
+        }
+
+
+        updatePageParagraphLabels(
+          page
+        );
+
+      }
+    );
+
+}
+
+
+/* =========================================================
+   UPDATE PARAGRAPH LABELS
+   ========================================================= */
+
+function updatePageParagraphLabels(
+  page
+) {
+
+  const paragraphs =
+    page.querySelectorAll(
+      ".page-paragraph"
+    );
+
+
+  paragraphs.forEach(
+    (
+      paragraph,
+      index
+    ) => {
+
+      paragraph.dataset.paragraphIndex =
+        index;
+
+
+      const label =
+        paragraph.querySelector(
+          ".paragraph-heading span"
+        );
+
+
+      if (label) {
+
+        label.textContent =
+          `Paragraph ${
+            index + 1
+          }`;
+
+      }
+
+    }
+  );
+
+
+  /*
+   * Remove empty-page message
+   * if a paragraph exists.
+   */
+
+  const emptyMessage =
+    page.querySelector(
+      ".empty-page-message"
+    );
+
+
+  if (
+    paragraphs.length &&
+    emptyMessage
+  ) {
+
+    emptyMessage.remove();
+
+  }
+
+
+  /*
+   * Update page count.
+   */
+
+  const pageActions =
+    page.querySelector(
+      ".page-actions"
+    );
+
+
+  if (!pageActions) {
+    return;
+  }
+
+
+  const count =
+    paragraphs.length;
+
+
+  if (
+    count >= 5
+  ) {
+
+    pageActions.innerHTML = `
+
+      <span class="page-limit">
+        5 / 5 paragraphs
+      </span>
+
+    `;
+
+  } else {
+
+    pageActions.innerHTML = `
+
+      <button
+        type="button"
+        class="continue-story-button"
+        data-add-paragraph
+      >
+        + CONTINUE STORY
+      </button>
+
+      <span class="page-limit">
+        ${count} / 5
+      </span>
+
+    `;
+
+  }
+
+}
+
+
+/* =========================================================
+   UPDATE CHALLENGE PAGE OPTIONS
+   ========================================================= */
+
+function updateChallengePageOptions(
+  form
+) {
+
+  const pageCount =
+    form.querySelectorAll(
+      ".article-page"
+    ).length;
+
+
+  form
+    .querySelectorAll(
+      "[data-game-page]"
+    )
+    .forEach(
+      select => {
+
+        const current =
+          Number(
+            select.value
+          ) || 1;
+
+
+        select.innerHTML =
+          Array.from(
+            {
+              length:
+                pageCount
+            },
+            (
+              _,
+              index
+            ) => {
+
+              const page =
+                index + 1;
+
+
+              return `
+
+                <option
+                  value="${page}"
+                  ${
+                    page ===
+                    Math.min(
+                      current,
+                      pageCount
+                    )
+                      ? "selected"
+                      : ""
+                  }
+                >
+                  After Page ${page}
+                </option>
+
+              `;
+
+            }
+          ).join("");
+
+      }
+    );
+
+}
+
+
+/* =========================================================
+   RENDER GAME EDITOR
+   ========================================================= */
+
+function renderGameEditor(
+  game,
+  gameIndex,
+  pageCount
+) {
+
+  const type =
+    game.type ||
+    "jumbled";
+
+
+  const afterPage =
+    Math.min(
+      Math.max(
+        Number(
+          game.afterPage
+        ) || 1,
+        1
+      ),
+      pageCount
+    );
+
+
+  const pageOptions =
+    Array.from(
+      {
+        length:
+          pageCount
+      },
+      (
+        _,
+        index
+      ) => {
+
+        const page =
+          index + 1;
+
+
+        return `
+
+          <option
+            value="${page}"
+            ${
+              page ===
+              afterPage
+                ? "selected"
+                : ""
+            }
+          >
+            After Page ${page}
+          </option>
+
+        `;
+
+      }
+    ).join("");
+
+
+  let content = "";
+
+
+  /*
+   * JUMBLED
+   */
+
+  if (
+    type === "jumbled"
+  ) {
+
+    content = `
+
+      <div class="form-group">
+
+        <label>
+          Correct answer
+        </label>
+
+        <input
+          data-game-answer
+          value="${escapeAttr(
+            game.answer || ""
+          )}"
+          placeholder="Example: MEDIA"
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Scrambled letters
+        </label>
+
+        <input
+          data-game-scrambled
+          value="${escapeAttr(
+            game.scrambled || ""
+          )}"
+          placeholder="Example: DAEMI"
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Hint
+        </label>
+
+        <input
+          data-game-hint
+          value="${escapeAttr(
+            game.hint || ""
+          )}"
+          placeholder="Optional hint"
+        >
+
+      </div>
+
+    `;
+
+  }
+
+
+  /*
+   * FOUR PICS
+   */
+
+  if (
+    type === "fourPics"
+  ) {
+
+    const images =
+      Array.isArray(
+        game.images
+      )
+        ? game.images
+        : [
+            "",
+            "",
+            "",
+            ""
+          ];
+
+
+    content = `
+
+      <div class="form-group">
+
+        <label>
+          Image 1 URL
+        </label>
+
+        <input
+          data-game-image="0"
+          value="${escapeAttr(
+            images[0] || ""
+          )}"
+          placeholder="Paste image URL"
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Image 2 URL
+        </label>
+
+        <input
+          data-game-image="1"
+          value="${escapeAttr(
+            images[1] || ""
+          )}"
+          placeholder="Paste image URL"
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Image 3 URL
+        </label>
+
+        <input
+          data-game-image="2"
+          value="${escapeAttr(
+            images[2] || ""
+          )}"
+          placeholder="Paste image URL"
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Image 4 URL
+        </label>
+
+        <input
+          data-game-image="3"
+          value="${escapeAttr(
+            images[3] || ""
+          )}"
+          placeholder="Paste image URL"
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Correct answer
+        </label>
+
+        <input
+          data-game-answer
+          value="${escapeAttr(
+            game.answer || ""
+          )}"
+          placeholder="Example: NEWS"
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Hint
+        </label>
+
+        <input
+          data-game-hint
+          value="${escapeAttr(
+            game.hint || ""
+          )}"
+          placeholder="Optional hint"
+        >
+
+      </div>
+
+    `;
+
+  }
+
+
+  /*
+   * CROSSWORD
+   *
+   * Leave the existing basic editor
+   * for now. We will rebuild this later.
+   */
+
+  if (
+    type === "crossword"
+  ) {
+
+    content = `
+
+      <div class="notice">
+
+        Crossword setup will be upgraded
+        after the new page system is finished.
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Crossword clue
+        </label>
+
+        <input
+          data-crossword-clue
+          value="${escapeAttr(
+            game.clues?.[0] || ""
+          )}"
+          placeholder="Enter clue"
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Answer
+        </label>
+
+        <input
+          data-crossword-answer
+          value="${escapeAttr(
+            game.crosswordAnswers?.[0] || ""
+          )}"
+          placeholder="Enter answer"
+        >
+
+      </div>
+
+    `;
+
+  }
+
+
+  return `
+
+    <article
+      class="game-item"
+      data-game-index="${gameIndex}"
+    >
+
+      <div class="game-item-header">
+
+        <div>
+
+          <span class="game-number">
+            CHALLENGE ${
+              String(
+                gameIndex + 1
+              ).padStart(
+                2,
+                "0"
+              )
+            }
+          </span>
+
+          <h4>
+            ${
+              type === "jumbled"
+                ? "Jumbled Words"
+                : type === "fourPics"
+                  ? "4 Pics 1 Word"
+                  : "Mini Crossword"
+            }
+          </h4>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="game-remove-button"
+          data-remove-game
+        >
+          Remove
+        </button>
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Appears after
+        </label>
+
+        <select
+          data-game-page
+        >
+
+          ${pageOptions}
+
+        </select>
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label>
+          Challenge type
+        </label>
+
+        <select
+          data-game-type
+        >
+
+          <option
+            value="jumbled"
+            ${
+              type ===
+              "jumbled"
+                ? "selected"
+                : ""
+            }
+          >
+            Jumbled Words
+          </option>
+
+
+          <option
+            value="fourPics"
+            ${
+              type ===
+              "fourPics"
+                ? "selected"
+                : ""
+            }
+          >
+            4 Pics 1 Word
+          </option>
+
+
+          <option
+            value="crossword"
+            ${
+              type ===
+              "crossword"
+                ? "selected"
+                : ""
+            }
+          >
+            Mini Crossword
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div class="game-content">
+
+        ${content}
+
+      </div>
+
+    </article>
+
+  `;
+
+}
+
+
+/* =========================================================
+   READ GAME ITEM
+   ========================================================= */
+
+function readGameItem(
+  gameItem
+) {
+
+  const type =
+    gameItem.querySelector(
+      "[data-game-type]"
+    )?.value ||
+    "jumbled";
+
+
+  const afterPage =
+    Number(
+      gameItem.querySelector(
+        "[data-game-page]"
+      )?.value ||
+      1
+    );
+
+
+  const images =
+    Array.from(
+      {
+        length: 4
+      },
+      (
+        _,
+        index
+      ) =>
+        gameItem.querySelector(
+          `[data-game-image="${index}"]`
+        )?.value?.trim() ||
+        ""
+    );
+
+
+  const clues = [
+    gameItem.querySelector(
+      "[data-crossword-clue]"
+    )?.value?.trim() ||
+    ""
+  ];
+
+
+  const crosswordAnswers = [
+    gameItem.querySelector(
+      "[data-crossword-answer]"
+    )?.value?.trim() ||
+    ""
+  ];
+
+
+  return {
+
+    afterPage,
+
+    type,
+
+    answer:
+      gameItem.querySelector(
+        "[data-game-answer]"
+      )?.value?.trim() ||
+      "",
+
+    scrambled:
+      gameItem.querySelector(
+        "[data-game-scrambled]"
+      )?.value?.trim() ||
+      "",
+
+    hint:
+      gameItem.querySelector(
+        "[data-game-hint]"
+      )?.value?.trim() ||
+      "",
+
+    images,
+
+    clues,
+
+    crosswordAnswers
+
+  };
+
+}
+
+
+/* =========================================================
+   UPDATE GAME NUMBERS
+   ========================================================= */
+
+function updateGameNumbers(
+  form
+) {
+
+  form
+    .querySelectorAll(
+      ".game-item"
+    )
+    .forEach(
+      (
+        gameItem,
+        index
+      ) => {
+
+        gameItem.dataset.gameIndex =
+          index;
+
+
+        const number =
+          gameItem.querySelector(
+            ".game-number"
+          );
+
+
+        if (number) {
+
+          number.textContent =
+            `CHALLENGE ${
+              String(
+                index + 1
+              ).padStart(
+                2,
+                "0"
+              )
+            }`;
+
+        }
+
+      }
+    );
+
+}
+
+
+/* =========================================================
    SAVE ARTICLE
    ========================================================= */
 
-async function saveArticle(event, form) {
+async function saveArticle(
+  event,
+  form
+) {
 
   event.preventDefault();
+
 
   const message =
     form.querySelector(
       ".save-message"
     );
+
 
   try {
 
@@ -2069,17 +3511,15 @@ async function saveArticle(event, form) {
     `;
 
 
-    /*
-     * ARTICLE BASIC INFORMATION
-     */
-
     const articleId =
       form.dataset.articleId;
+
 
     const title =
       form.querySelector(
         '[name="title"]'
       ).value.trim();
+
 
     const image =
       form.querySelector(
@@ -2088,54 +3528,105 @@ async function saveArticle(event, form) {
 
 
     /*
-     * PARAGRAPHS
+     * ===============================================
+     * READ PAGES
+     * ===============================================
      */
 
-    const paragraphElements =
+    const pageElements =
       form.querySelectorAll(
-        ".paragraph-item textarea"
+        ".article-page"
       );
+
+
+    if (
+      pageElements.length < 2
+    ) {
+
+      throw new Error(
+        "NewsQuest requires at least 2 article pages."
+      );
+
+    }
+
+
+    const pages =
+      Array.from(
+        pageElements
+      ).map(
+        page => {
+
+          const paragraphElements =
+            page.querySelectorAll(
+              ".page-paragraph textarea"
+            );
+
+
+          if (
+            paragraphElements.length > 5
+          ) {
+
+            throw new Error(
+              "A page cannot contain more than 5 paragraphs."
+            );
+
+          }
+
+
+          const paragraphs =
+            Array.from(
+              paragraphElements
+            ).map(
+              textarea =>
+                textarea.value.trim()
+            );
+
+
+          if (
+            paragraphs.some(
+              paragraph =>
+                !paragraph
+            )
+          ) {
+
+            throw new Error(
+              "Please complete or remove every empty paragraph."
+            );
+
+          }
+
+
+          return {
+
+            paragraphs
+
+          };
+
+        }
+      );
+
+
+    /*
+     * ===============================================
+     * FLATTEN PARAGRAPHS
+     *
+     * Kept for compatibility with
+     * existing reader code.
+     * ===============================================
+     */
 
     const paragraphs =
-      Array.from(
-        paragraphElements
-      ).map(
-        textarea =>
-          textarea.value.trim()
-      );
+      pages
+        .flatMap(
+          page =>
+            page.paragraphs
+        );
 
 
     /*
-     * Check empty paragraphs
-     */
-
-    if (
-      paragraphs.some(
-        paragraph =>
-          !paragraph
-      )
-    ) {
-
-      throw new Error(
-        "Please fill in all article paragraphs."
-      );
-
-    }
-
-
-    if (
-      paragraphs.length === 0
-    ) {
-
-      throw new Error(
-        "The article needs at least one paragraph."
-      );
-
-    }
-
-
-    /*
-     * GAMES
+     * ===============================================
+     * READ GAMES
+     * ===============================================
      */
 
     const gameElements =
@@ -2156,65 +3647,29 @@ async function saveArticle(event, form) {
 
 
     /*
-     * Validate game positions
+     * ===============================================
+     * VALIDATE GAME POSITIONS
+     * ===============================================
      */
-
-    const usedPositions =
-      new Set();
-
 
     games.forEach(
       game => {
 
         if (
-          paragraphs.length < 2
+          game.afterPage < 1 ||
+          game.afterPage >
+            pages.length
         ) {
 
           throw new Error(
-            "You need at least 2 paragraphs before adding an interactive game."
-          );
-
-        }
-
-
-        if (
-          game.position < 1 ||
-          game.position >= paragraphs.length
-        ) {
-
-          throw new Error(
-            `Game position must be between After Paragraph 1 and After Paragraph ${
-              paragraphs.length - 1
-            }.`
+            "Every challenge must be placed after a valid article page."
           );
 
         }
 
 
         /*
-         * One game per position
-         */
-
-        if (
-          usedPositions.has(
-            game.position
-          )
-        ) {
-
-          throw new Error(
-            `There is already a game after Paragraph ${game.position}.`
-          );
-
-        }
-
-
-        usedPositions.add(
-          game.position
-        );
-
-
-        /*
-         * GAME VALIDATION
+         * JUMBLED
          */
 
         if (
@@ -2227,7 +3682,7 @@ async function saveArticle(event, form) {
           ) {
 
             throw new Error(
-              "Jumbled Words needs an answer."
+              "Jumbled Words needs a correct answer."
             );
 
           }
@@ -2245,6 +3700,10 @@ async function saveArticle(event, form) {
 
         }
 
+
+        /*
+         * FOUR PICS
+         */
 
         if (
           game.type ===
@@ -2270,13 +3729,19 @@ async function saveArticle(event, form) {
           ) {
 
             throw new Error(
-              "4 Pics 1 Word needs an answer."
+              "4 Pics 1 Word needs a correct answer."
             );
 
           }
 
         }
 
+
+        /*
+         * CROSSWORD
+         *
+         * Temporary validation.
+         */
 
         if (
           game.type ===
@@ -2311,7 +3776,9 @@ async function saveArticle(event, form) {
 
 
     /*
+     * ===============================================
      * FINAL QUIZ
+     * ===============================================
      */
 
     const questions =
@@ -2328,13 +3795,13 @@ async function saveArticle(event, form) {
           const choices =
             Array.from(
               { length: 4 },
-              (_, choiceIndex) => {
-
-                return form.querySelector(
+              (
+                _,
+                choiceIndex
+              ) =>
+                form.querySelector(
                   `[name="q${index}_choice${choiceIndex}"]`
-                ).value.trim();
-
-              }
+                ).value.trim()
             );
 
 
@@ -2347,28 +3814,33 @@ async function saveArticle(event, form) {
 
 
           return {
+
             text,
+
             choices,
+
             correct
+
           };
 
         }
       );
 
 
-    /*
-     * Validate quiz
-     */
-
     questions.forEach(
-      (question, index) => {
+      (
+        question,
+        index
+      ) => {
 
         if (
           !question.text
         ) {
 
           throw new Error(
-            `Question ${index + 1} is empty.`
+            `Question ${
+              index + 1
+            } is empty.`
           );
 
         }
@@ -2394,10 +3866,9 @@ async function saveArticle(event, form) {
 
 
     /*
-     * BODY
-     *
-     * Keep the old body field
-     * for compatibility.
+     * ===============================================
+     * LEGACY BODY
+     * ===============================================
      */
 
     const body =
@@ -2407,7 +3878,9 @@ async function saveArticle(event, form) {
 
 
     /*
-     * SAVE TO FIRESTORE
+     * ===============================================
+     * SAVE
+     * ===============================================
      */
 
     await setDoc(
@@ -2424,9 +3897,20 @@ async function saveArticle(event, form) {
 
         image,
 
-        paragraphs,
+        /*
+         * NEW STRUCTURE
+         */
+
+        pages,
 
         games,
+
+        /*
+         * OLD STRUCTURE KEPT FOR
+         * COMPATIBILITY
+         */
+
+        paragraphs,
 
         body,
 
@@ -2439,25 +3923,33 @@ async function saveArticle(event, form) {
     );
 
 
-    /*
-     * SUCCESS
-     */
-
     message.innerHTML = `
-      <div class="notice">
+      <div class="save-success">
         ✓ ${escapeHTML(
           articleName(
             articleId
           )
-        )} saved successfully!
+        )} saved successfully.
       </div>
     `;
 
 
-    console.log(
-      "Article saved:",
-      articleId
-    );
+    /*
+     * Update small page counter
+     */
+
+    const status =
+      form.querySelector(
+        ".editor-status"
+      );
+
+
+    if (status) {
+
+      status.textContent =
+        `${pages.length} pages`;
+
+    }
 
 
   } catch (error) {
@@ -2478,648 +3970,6 @@ async function saveArticle(event, form) {
     `;
 
   }
-
-}
-  /* =========================================================
-   GAME EDITOR
-   ========================================================= */
-
-function renderGameEditor(
-  game,
-  gameIndex,
-  paragraphCount
-) {
-
-  const maxPosition =
-    Math.max(
-      paragraphCount - 1,
-      1
-    );
-
-
-  const positionOptions =
-    Array.from(
-      {
-        length:
-          maxPosition
-      },
-      (_, index) => {
-
-        const position =
-          index + 1;
-
-        return `
-          <option
-            value="${position}"
-            ${
-              Number(
-                game.position
-              ) === position
-                ? "selected"
-                : ""
-            }
-          >
-            After Paragraph ${position}
-          </option>
-        `;
-
-      }
-    ).join("");
-
-
-  const type =
-    game.type || "jumbled";
-
-
-  let content = "";
-
-
-  /*
-   * JUMBLED WORDS
-   */
-
-  if (
-    type === "jumbled"
-  ) {
-
-    content = `
-
-      <div class="form-group">
-
-        <label>
-          Answer
-        </label>
-
-        <input
-          data-game-answer
-          value="${escapeAttr(
-            game.answer || ""
-          )}"
-          placeholder="Example: MEDIA"
-        >
-
-      </div>
-
-      <div class="form-group">
-
-        <label>
-          Scrambled Letters
-        </label>
-
-        <input
-          data-game-scrambled
-          value="${escapeAttr(
-            game.scrambled || ""
-          )}"
-          placeholder="Example: DAEMI"
-        >
-
-      </div>
-
-      <div class="form-group">
-
-        <label>
-          Hint
-        </label>
-
-        <input
-          data-game-hint
-          value="${escapeAttr(
-            game.hint || ""
-          )}"
-          placeholder="Optional hint"
-        >
-
-      </div>
-
-    `;
-
-  }
-
-
-  /*
-   * 4 PICS 1 WORD
-   */
-
-  if (
-    type === "fourPics"
-  ) {
-
-    const images =
-      Array.isArray(
-        game.images
-      )
-        ? game.images
-        : [
-            "",
-            "",
-            "",
-            ""
-          ];
-
-
-    content = `
-
-      <div class="form-group">
-
-        <label>
-          Image 1 URL
-        </label>
-
-        <input
-          data-game-image="0"
-          value="${escapeAttr(
-            images[0] || ""
-          )}"
-          placeholder="Image URL"
-        >
-
-      </div>
-
-      <div class="form-group">
-
-        <label>
-          Image 2 URL
-        </label>
-
-        <input
-          data-game-image="1"
-          value="${escapeAttr(
-            images[1] || ""
-          )}"
-          placeholder="Image URL"
-        >
-
-      </div>
-
-      <div class="form-group">
-
-        <label>
-          Image 3 URL
-        </label>
-
-        <input
-          data-game-image="2"
-          value="${escapeAttr(
-            images[2] || ""
-          )}"
-          placeholder="Image URL"
-        >
-
-      </div>
-
-      <div class="form-group">
-
-        <label>
-          Image 4 URL
-        </label>
-
-        <input
-          data-game-image="3"
-          value="${escapeAttr(
-            images[3] || ""
-          )}"
-          placeholder="Image URL"
-        >
-
-      </div>
-
-      <div class="form-group">
-
-        <label>
-          Answer
-        </label>
-
-        <input
-          data-game-answer
-          value="${escapeAttr(
-            game.answer || ""
-          )}"
-          placeholder="Example: NEWS"
-        >
-
-      </div>
-
-      <div class="form-group">
-
-        <label>
-          Hint
-        </label>
-
-        <input
-          data-game-hint
-          value="${escapeAttr(
-            game.hint || ""
-          )}"
-          placeholder="Optional hint"
-        >
-
-      </div>
-
-    `;
-
-  }
-
-
-  /*
-   * MINI CROSSWORD
-   */
-
-  if (
-    type === "crossword"
-  ) {
-
-    content = `
-
-      <div class="form-group">
-
-        <label>
-          Crossword clue
-        </label>
-
-        <input
-          data-crossword-clue
-          value="${escapeAttr(
-            game.clues?.[0] || ""
-          )}"
-          placeholder="Example: A source of information"
-        >
-
-      </div>
-
-      <div class="form-group">
-
-        <label>
-          Answer
-        </label>
-
-        <input
-          data-crossword-answer
-          value="${escapeAttr(
-            game.crosswordAnswers?.[0] || ""
-          )}"
-          placeholder="Example: NEWS"
-        >
-
-      </div>
-
-      <div class="notice">
-        Basic crossword editor for now.
-        We will build the actual crossword grid
-        after the article/game system is working.
-      </div>
-
-    `;
-
-  }
-
-
-  return `
-
-    <div
-      class="article-section game-item"
-      data-game-index="${gameIndex}"
-    >
-
-      <div
-        style="
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:10px;
-        "
-      >
-
-        <h4>
-          Game ${
-            gameIndex + 1
-          }
-        </h4>
-
-        <button
-          type="button"
-          class="secondary-btn"
-          data-remove-game
-        >
-          Remove Game
-        </button>
-
-      </div>
-
-
-      <div class="form-group">
-
-        <label>
-          Game Position
-        </label>
-
-        <select
-          data-game-position
-        >
-
-          ${positionOptions}
-
-        </select>
-
-      </div>
-
-
-      <div class="form-group">
-
-        <label>
-          Game Type
-        </label>
-
-        <select
-          data-game-type
-        >
-
-          <option
-            value="jumbled"
-            ${
-              type === "jumbled"
-                ? "selected"
-                : ""
-            }
-          >
-            Jumbled Words
-          </option>
-
-          <option
-            value="fourPics"
-            ${
-              type === "fourPics"
-                ? "selected"
-                : ""
-            }
-          >
-            4 Pics 1 Word
-          </option>
-
-          <option
-            value="crossword"
-            ${
-              type === "crossword"
-                ? "selected"
-                : ""
-            }
-          >
-            Mini Crossword
-          </option>
-
-        </select>
-
-      </div>
-
-
-      <div
-        class="game-content"
-      >
-
-        ${content}
-
-      </div>
-
-    </div>
-
-  `;
-
-}
-
-
-/* =========================================================
-   GAME HELPERS
-   ========================================================= */
-
-function readGameItem(
-  gameItem
-) {
-
-  const type =
-    gameItem.querySelector(
-      "[data-game-type]"
-    )?.value || "jumbled";
-
-
-  const position =
-    Number(
-      gameItem.querySelector(
-        "[data-game-position]"
-      )?.value || 1
-    );
-
-
-  const images =
-    Array.from(
-      {
-        length: 4
-      },
-      (_, index) =>
-        gameItem.querySelector(
-          `[data-game-image="${index}"]`
-        )?.value?.trim() || ""
-    );
-
-
-  const clues =
-    [
-      gameItem.querySelector(
-        "[data-crossword-clue]"
-      )?.value?.trim() || ""
-    ];
-
-
-  const crosswordAnswers =
-    [
-      gameItem.querySelector(
-        "[data-crossword-answer]"
-      )?.value?.trim() || ""
-    ];
-
-
-  return {
-
-    position,
-
-    type,
-
-    answer:
-      gameItem.querySelector(
-        "[data-game-answer]"
-      )?.value?.trim() || "",
-
-    scrambled:
-      gameItem.querySelector(
-        "[data-game-scrambled]"
-      )?.value?.trim() || "",
-
-    hint:
-      gameItem.querySelector(
-        "[data-game-hint]"
-      )?.value?.trim() || "",
-
-    images,
-
-    clues,
-
-    crosswordAnswers
-
-  };
-
-}
-
-
-function updateParagraphLabels(
-  form
-) {
-
-  const items =
-    form.querySelectorAll(
-      ".paragraph-item"
-    );
-
-
-  items.forEach(
-    (item, index) => {
-
-      item.dataset.paragraphIndex =
-        index;
-
-
-      const label =
-        item.querySelector(
-          "strong"
-        );
-
-
-      if (label) {
-
-        label.textContent =
-          `Paragraph ${
-            index + 1
-          }`;
-
-      }
-
-    }
-  );
-
-}
-
-
-function updateGamePositions(
-  form
-) {
-
-  const paragraphCount =
-    form.querySelectorAll(
-      ".paragraph-item"
-    ).length;
-
-
-  const maxPosition =
-    Math.max(
-      paragraphCount - 1,
-      1
-    );
-
-
-  form
-    .querySelectorAll(
-      ".game-item"
-    )
-    .forEach(
-      gameItem => {
-
-        const select =
-          gameItem.querySelector(
-            "[data-game-position]"
-          );
-
-
-        if (!select) {
-          return;
-        }
-
-
-        const current =
-          Number(
-            select.value
-          );
-
-
-        select.innerHTML =
-          Array.from(
-            {
-              length:
-                maxPosition
-            },
-            (_, index) => {
-
-              const position =
-                index + 1;
-
-              return `
-                <option
-                  value="${position}"
-                  ${
-                    position ===
-                    Math.min(
-                      current || 1,
-                      maxPosition
-                    )
-                      ? "selected"
-                      : ""
-                  }
-                >
-                  After Paragraph ${position}
-                </option>
-              `;
-
-            }
-          ).join("");
-
-      }
-    );
-
-}
-
-
-function updateGameNumbers(
-  form
-) {
-
-  form
-    .querySelectorAll(
-      ".game-item"
-    )
-    .forEach(
-      (
-        gameItem,
-        index
-      ) => {
-
-        gameItem.dataset.gameIndex =
-          index;
-
-
-        const heading =
-          gameItem.querySelector(
-            "h4"
-          );
-
-
-        if (heading) {
-
-          heading.textContent =
-            `Game ${
-              index + 1
-            }`;
-
-        }
-
-      }
-    );
 
 }
   // =========================================================
