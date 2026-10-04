@@ -441,10 +441,13 @@ function renderArticleWithGames(article) {
       ? article.games
       : [];
 
+  const totalParagraphs =
+    paragraphs.length;
+
+
   console.log("NEWSQUEST ARTICLE:", article);
   console.log("NEWSQUEST GAMES:", games);
 
-  const totalParagraphs = paragraphs.length;
 
   /*
     Convert games into:
@@ -459,17 +462,47 @@ function renderArticleWithGames(article) {
 
   games.forEach(game => {
 
-    const position = Number(game.position);
+    const position =
+      Number(game.position);
 
     if (
       Number.isInteger(position) &&
       position >= 1 &&
       position < totalParagraphs
     ) {
+
       gameMap[position] = game;
+
     }
 
   });
+
+
+  /*
+    Determine which paragraph/game
+    is the first locked section.
+  */
+
+  let firstLockedParagraph =
+    totalParagraphs + 1;
+
+
+  for (
+    let i = 1;
+    i <= totalParagraphs;
+    i++
+  ) {
+
+    if (gameMap[i]) {
+
+      firstLockedParagraph =
+        i + 1;
+
+      break;
+
+    }
+
+  }
 
 
   document.querySelector("#app").innerHTML = `
@@ -536,7 +569,8 @@ function renderArticleWithGames(article) {
               <img
                 src="${escapeAttr(article.image)}"
                 alt="${escapeAttr(
-                  article.title || "Article image"
+                  article.title ||
+                  "Article image"
                 )}"
                 class="article-image"
               >
@@ -558,65 +592,96 @@ function renderArticleWithGames(article) {
 
 
               /*
-                Anything after a game is hidden
-                until that game is answered correctly.
+                Everything after the first locked
+                point starts blurred.
               */
 
-              const hasPreviousGame =
-                paragraphs
-                  .slice(
-                    0,
-                    paragraphNumber - 1
-                  )
-                  .some(
-                    (_, previousIndex) =>
-                      gameMap[
-                        previousIndex + 1
-                      ]
-                  );
-
-
-              const shouldBeHidden =
-                hasPreviousGame;
+              const isLocked =
+                paragraphNumber >=
+                firstLockedParagraph;
 
 
               return `
 
                 <div
-                  class="article-step"
+                  class="
+                    article-step
+                    ${isLocked ? "locked-content" : ""}
+                  "
                   data-paragraph="${paragraphNumber}"
                   ${
-                    shouldBeHidden
-                      ? 'style="display:none;"'
-                      : ""
+                    isLocked
+                      ? 'data-locked="true"'
+                      : 'data-locked="false"'
                   }
                 >
 
-                  <p class="article-body">
-
-                    ${escapeHTML(
-                      paragraph
-                    )}
-
-                  </p>
-
-
                   ${
-                    game
+                    isLocked
                       ? `
 
-                        <div
-                          class="interactive-game card"
-                          data-game-position="${paragraphNumber}"
-                        >
+                        <div class="locked-overlay">
 
-                          ${renderReaderGame(game)}
+                          <div class="locked-message">
+
+                            <div class="locked-icon">
+                              🔒
+                            </div>
+
+                            <strong>
+                              Paragraph locked
+                            </strong>
+
+                            <span>
+                              Answer the game above
+                              to unlock the next part
+                              of the article.
+                            </span>
+
+                          </div>
 
                         </div>
 
                       `
                       : ""
                   }
+
+
+                  <div
+                    class="${
+                      isLocked
+                        ? "locked-blur"
+                        : ""
+                    }"
+                  >
+
+                    <p class="article-body">
+
+                      ${escapeHTML(
+                        paragraph
+                      )}
+
+                    </p>
+
+
+                    ${
+                      game
+                        ? `
+
+                          <div
+                            class="interactive-game card"
+                            data-game-position="${paragraphNumber}"
+                          >
+
+                            ${renderReaderGame(game)}
+
+                          </div>
+
+                        `
+                        : ""
+                    }
+
+                  </div>
 
                 </div>
 
@@ -631,11 +696,7 @@ function renderArticleWithGames(article) {
         <div
           id="final-reading-action"
           class="action-row"
-          style="${
-            games.length > 0
-              ? "display:none;"
-              : ""
-          }"
+          style="display:none;"
         >
 
           <button
@@ -668,183 +729,309 @@ function renderArticleWithGames(article) {
   */
 
   document
-    .querySelectorAll(".interactive-game")
-    .forEach(gameContainer => {
+    .querySelectorAll(
+      ".interactive-game"
+    )
+    .forEach(
+      gameContainer => {
 
-      const position =
-        Number(
-          gameContainer.dataset.gamePosition
-        );
-
-
-      const game =
-        gameMap[position];
-
-
-      if (!game) {
-        return;
-      }
+        const position =
+          Number(
+            gameContainer.dataset
+              .gamePosition
+          );
 
 
-      const input =
-        gameContainer.querySelector(
-          ".game-answer"
-        );
+        const game =
+          gameMap[position];
 
 
-      const button =
-        gameContainer.querySelector(
-          ".game-submit"
-        );
+        if (!game) {
+          return;
+        }
 
 
-      const message =
-        gameContainer.querySelector(
-          ".game-message"
-        );
+        const input =
+          gameContainer.querySelector(
+            ".game-answer"
+          );
 
 
-      if (
-        !input ||
-        !button ||
-        !message
-      ) {
-        return;
-      }
+        const button =
+          gameContainer.querySelector(
+            ".game-submit"
+          );
 
 
-      button.addEventListener(
-        "click",
-        () => {
-
-          const userAnswer =
-            input.value
-              .trim()
-              .toLowerCase();
+        const message =
+          gameContainer.querySelector(
+            ".game-message"
+          );
 
 
-          const correctAnswer =
-            String(
-              game.answer || ""
-            )
-              .trim()
-              .toLowerCase();
+        if (
+          !input ||
+          !button ||
+          !message
+        ) {
+
+          return;
+
+        }
 
 
-          if (!userAnswer) {
+        button.addEventListener(
+          "click",
+          () => {
 
-            message.innerHTML =
-              setMessage(
-                "Please enter your answer first."
-              );
-
-            return;
-
-          }
+            const userAnswer =
+              input.value
+                .trim()
+                .toLowerCase();
 
 
-          if (
-            userAnswer ===
-            correctAnswer
-          ) {
-
-            message.innerHTML =
-              setMessage(
-                "Correct! Great job.",
-                "success"
-              );
+            const correctAnswer =
+              String(
+                game.answer || ""
+              )
+                .trim()
+                .toLowerCase();
 
 
-            input.disabled = true;
-            button.disabled = true;
+            if (!userAnswer) {
 
+              message.innerHTML =
+                setMessage(
+                  "Please enter your answer first."
+                );
 
-            /*
-              Reveal the paragraph immediately
-              AFTER this game.
-            */
-
-            const nextParagraph =
-              document.querySelector(
-                `.article-step[data-paragraph="${position + 1}"]`
-              );
-
-
-            if (nextParagraph) {
-
-              nextParagraph.style.display =
-                "block";
-
-              nextParagraph.scrollIntoView({
-                behavior: "smooth",
-                block: "start"
-              });
+              return;
 
             }
 
 
-            /*
-              Check if there are still
-              unanswered games.
-            */
+            if (
+              userAnswer ===
+              correctAnswer
+            ) {
 
-            const remainingGames =
-              Array.from(
-                document.querySelectorAll(
-                  ".interactive-game"
-                )
-              ).some(
-                container => {
-
-                  const gameInput =
-                    container.querySelector(
-                      ".game-answer"
-                    );
-
-                  return (
-                    gameInput &&
-                    !gameInput.disabled
-                  );
-
-                }
-              );
-
-
-            /*
-              If there are no more games,
-              show Final Quiz button.
-            */
-
-            if (!remainingGames) {
-
-              const finalAction =
-                document.querySelector(
-                  "#final-reading-action"
+              message.innerHTML =
+                setMessage(
+                  "Correct! Great job.",
+                  "success"
                 );
 
 
-              if (finalAction) {
+              input.disabled =
+                true;
 
-                finalAction.style.display =
-                  "flex";
+              button.disabled =
+                true;
+
+
+              /*
+                Unlock the next section.
+
+                IMPORTANT:
+                We don't just reveal one paragraph.
+                We reveal everything until the next game.
+              */
+
+              let nextGamePosition =
+                null;
+
+
+              const gamePositions =
+                Object.keys(
+                  gameMap
+                )
+                  .map(Number)
+                  .sort(
+                    (a, b) => a - b
+                  );
+
+
+              for (
+                const gamePosition
+                of gamePositions
+              ) {
+
+                if (
+                  gamePosition >
+                  position
+                ) {
+
+                  nextGamePosition =
+                    gamePosition;
+
+                  break;
+
+                }
 
               }
 
+
+              /*
+                If there is another game,
+                reveal all paragraphs up to
+                and including the paragraph
+                containing that next game.
+              */
+
+              const revealUntil =
+                nextGamePosition
+                  ? nextGamePosition
+                  : totalParagraphs;
+
+
+              for (
+                let paragraphNumber =
+                  position + 1;
+                paragraphNumber <=
+                  revealUntil;
+                paragraphNumber++
+              ) {
+
+                const paragraph =
+                  document.querySelector(
+                    `.article-step[data-paragraph="${paragraphNumber}"]`
+                  );
+
+
+                if (!paragraph) {
+                  continue;
+                }
+
+
+                paragraph.classList.remove(
+                  "locked-content"
+                );
+
+
+                paragraph
+                  .removeAttribute(
+                    "data-locked"
+                  );
+
+
+                const overlay =
+                  paragraph.querySelector(
+                    ".locked-overlay"
+                  );
+
+
+                if (overlay) {
+
+                  overlay.remove();
+
+                }
+
+
+                const blurred =
+                  paragraph.querySelector(
+                    ".locked-blur"
+                  );
+
+
+                if (blurred) {
+
+                  blurred.classList.remove(
+                    "locked-blur"
+                  );
+
+                }
+
+              }
+
+
+              /*
+                Scroll to the next unlocked
+                content.
+              */
+
+              const nextSection =
+                document.querySelector(
+                  `.article-step[data-paragraph="${position + 1}"]`
+                );
+
+
+              if (nextSection) {
+
+                setTimeout(() => {
+
+                  nextSection.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                  });
+
+                }, 150);
+
+              }
+
+
+              /*
+                Check whether any unanswered
+                games remain.
+              */
+
+              const remainingGames =
+                Array.from(
+                  document.querySelectorAll(
+                    ".interactive-game"
+                  )
+                ).some(
+                  container => {
+
+                    const gameInput =
+                      container.querySelector(
+                        ".game-answer"
+                      );
+
+
+                    return (
+                      gameInput &&
+                      !gameInput.disabled
+                    );
+
+                  }
+                );
+
+
+              /*
+                All games completed.
+              */
+
+              if (!remainingGames) {
+
+                const finalAction =
+                  document.querySelector(
+                    "#final-reading-action"
+                  );
+
+
+                if (finalAction) {
+
+                  finalAction.style.display =
+                    "flex";
+
+                }
+
+              }
+
+            } else {
+
+              message.innerHTML =
+                setMessage(
+                  "Not quite. Try again."
+                );
+
             }
 
-          } else {
-
-            message.innerHTML =
-              setMessage(
-                "Not quite. Try again."
-              );
-
           }
+        );
 
-        }
-      );
-
-    });
+      }
+    );
 
 
   /*
