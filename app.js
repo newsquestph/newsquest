@@ -1657,15 +1657,16 @@ function renderArticleWithGames(article) {
               }
 
             }
+else {
 
-            else {
+  playSound("wrong.mp3");
 
-              message.innerHTML =
-                setMessage(
-                  "Not quite. Try again."
-                );
+  message.innerHTML =
+    setMessage(
+      "Not quite. Try again."
+    );
 
-            }
+}
 
           }
         );
