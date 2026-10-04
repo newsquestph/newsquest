@@ -399,6 +399,7 @@
   // =========================================================
 
   async function isResearcher(user) {
+
     if (!user) {
       return false;
     }
@@ -426,6 +427,7 @@
   // =========================================================
 
   async function seedInitialData() {
+
     const articleSnapshot =
       await getDocs(
         collection(
@@ -463,7 +465,9 @@
         );
 
         changed = true;
+
       });
+
     }
 
     if (codeSnapshot.empty) {
@@ -501,13 +505,16 @@
           );
 
           changed = true;
+
         }
       );
+
     }
 
     if (changed) {
       await batch.commit();
     }
+
   }
 
   // =========================================================
@@ -755,6 +762,7 @@
     ) {
       renderExport();
     }
+
   }
 
   // =========================================================
@@ -894,6 +902,7 @@
 
               </tr>
             `;
+
           })
           .join("");
 
@@ -967,1598 +976,1531 @@
 
         </section>
       `;
+
     }
+
   }
 
   // =========================================================
-  // ARTICLE BUILDER
+  // ARTICLE / GAME / QUIZ EDITOR
   // =========================================================
 
- async function renderEditor() {
+  async function renderEditor() {
 
-  const container =
-    document.querySelector(
-      "#dashboard-content"
-    );
-
-  if (!container) {
-    return;
-  }
-
-  container.innerHTML = `
-    <section class="editor-workspace">
-
-      <div class="editor-intro">
-
-        <div class="editor-eyebrow">
-          Editorial Workspace
-        </div>
-
-        <h2>
-          Article / Game / Quiz Editor
-        </h2>
-
-        <p>
-          Build the article page by page,
-          add interactive games, and create
-          the five-question quiz.
-        </p>
-
-        <div class="editor-rules">
-
-          <span>
-            Minimum 2 pages
-          </span>
-
-          <span>
-            Maximum 5 paragraphs per page
-          </span>
-
-          <span>
-            5 quiz questions
-          </span>
-
-          <span>
-            4 choices per question
-          </span>
-
-        </div>
-
-      </div>
-
-      <div id="article-editor-list">
-
-        <div class="notice">
-          Loading articles...
-        </div>
-
-      </div>
-
-    </section>
-  `;
-
-  const articleList =
-    document.querySelector(
-      "#article-editor-list"
-    );
-
-  try {
-
-    // =====================================================
-    // LOAD ARTICLES
-    // =====================================================
-
-    const articlesSnapshot =
-      await getDocs(
-        collection(
-          db,
-          "articles"
-        )
+    const container =
+      document.querySelector(
+        "#dashboard-content"
       );
 
-    const articles = [];
-
-    articlesSnapshot.forEach(
-      docSnap => {
-
-        articles.push({
-          id: docSnap.id,
-          ...docSnap.data()
-        });
-
-      }
-    );
-
-    articles.sort(
-      (a, b) =>
-        String(a.id).localeCompare(
-          String(b.id)
-        )
-    );
-
-    if (!articles.length) {
-
-      articleList.innerHTML = `
-        <div class="empty-editor-state">
-          <p>No articles found.</p>
-        </div>
-      `;
-
+    if (!container) {
       return;
     }
 
-    // =====================================================
-    // NORMALIZE PAGES
-    // =====================================================
+    container.innerHTML = `
+      <section class="editor-workspace">
 
-    function normalizePages(article) {
+        <div class="editor-intro">
 
-      if (
-        Array.isArray(article.pages) &&
-        article.pages.length >= 2
-      ) {
+          <div class="editor-eyebrow">
+            Editorial Workspace
+          </div>
 
-        return article.pages.map(
-          (page, index) => ({
+          <h2>
+            Article / Game / Quiz Editor
+          </h2>
 
-            pageNumber:
-              index + 1,
+          <p>
+            Edit article information, build the article
+            page by page, add interactive games, and
+            create the five-question quiz.
+          </p>
 
-            paragraphs:
-              Array.isArray(
-                page.paragraphs
-              )
-                ? page.paragraphs
-                    .map(
-                      paragraph =>
-                        String(
-                          paragraph ?? ""
-                        )
-                    )
-                    .slice(0, 5)
+          <div class="editor-rules">
 
-                : []
+            <span>
+              Minimum 2 pages
+            </span>
 
-          })
-        );
+            <span>
+              Maximum 5 paragraphs per page
+            </span>
 
-      }
+            <span>
+              5 quiz questions
+            </span>
 
-      let oldParagraphs = [];
-
-      if (
-        Array.isArray(
-          article.paragraphs
-        )
-      ) {
-
-        oldParagraphs =
-          article.paragraphs.map(
-            paragraph =>
-              String(
-                paragraph ?? ""
-              )
-          );
-
-      } else if (
-        Array.isArray(
-          article.sections
-        )
-      ) {
-
-        oldParagraphs =
-          article.sections.flatMap(
-            section => {
-
-              if (
-                !Array.isArray(
-                  section.paragraphs
-                )
-              ) {
-                return [];
-              }
-
-              return section.paragraphs.map(
-                paragraph =>
-                  String(
-                    paragraph ?? ""
-                  )
-              );
-
-            }
-          );
-
-      } else if (
-        article.body
-      ) {
-
-        oldParagraphs =
-          String(
-            article.body
-          )
-            .split(/\n\s*\n/)
-            .map(
-              paragraph =>
-                paragraph.trim()
-            )
-            .filter(Boolean);
-
-      }
-
-      const pages = [];
-
-      for (
-        let i = 0;
-        i < oldParagraphs.length;
-        i += 5
-      ) {
-
-        pages.push({
-
-          pageNumber:
-            pages.length + 1,
-
-          paragraphs:
-            oldParagraphs.slice(
-              i,
-              i + 5
-            )
-
-        });
-
-      }
-
-      while (
-        pages.length < 2
-      ) {
-
-        pages.push({
-
-          pageNumber:
-            pages.length + 1,
-
-          paragraphs: []
-
-        });
-
-      }
-
-      return pages;
-    }
-
-    // =====================================================
-    // NORMALIZE GAMES
-    // =====================================================
-
-    function normalizeGames(article) {
-
-      if (
-        !Array.isArray(
-          article.games
-        )
-      ) {
-        return [];
-      }
-
-      return article.games.map(
-        game => {
-
-          const normalized = {
-            type:
-              game.type ||
-              "jumbled",
-
-            afterPage:
-              Number(
-                game.afterPage || 1
-              )
-          };
-
-          if (
-            normalized.type ===
-            "jumbled"
-          ) {
-
-            normalized.answer =
-              String(
-                game.answer || ""
-              );
-
-            normalized.scrambled =
-              String(
-                game.scrambled || ""
-              );
-
-          }
-
-          if (
-            normalized.type ===
-            "fourPics"
-          ) {
-
-            normalized.images =
-              Array.isArray(
-                game.images
-              )
-                ? [
-                    String(
-                      game.images[0] || ""
-                    ),
-                    String(
-                      game.images[1] || ""
-                    ),
-                    String(
-                      game.images[2] || ""
-                    ),
-                    String(
-                      game.images[3] || ""
-                    )
-                  ]
-                : ["", "", "", ""];
-
-            normalized.answer =
-              String(
-                game.answer || ""
-              );
-
-          }
-
-          if (
-            normalized.type ===
-            "crossword"
-          ) {
-
-            normalized.size =
-              Number(
-                game.size || 8
-              );
-
-            normalized.words =
-              Array.isArray(
-                game.words
-              )
-                ? game.words.map(
-                    word => ({
-                      answer:
-                        String(
-                          word.answer || ""
-                        ),
-
-                      clue:
-                        String(
-                          word.clue || ""
-                        ),
-
-                      row:
-                        Number(
-                          word.row || 1
-                        ),
-
-                      column:
-                        Number(
-                          word.column || 1
-                        ),
-
-                      direction:
-                        word.direction ===
-                        "down"
-                          ? "down"
-                          : "across"
-                    })
-                  )
-                : [];
-
-          }
-
-          return normalized;
-
-        }
-      );
-    }
-
-    // =====================================================
-    // NORMALIZE QUIZ
-    // =====================================================
-
-    function normalizeQuestions(article) {
-
-      const source =
-        Array.isArray(
-          article.questions
-        )
-          ? article.questions
-          : [];
-
-      const questions =
-        Array.from(
-          { length: 5 },
-          (_, index) => {
-
-            const existing =
-              source[index] || {};
-
-            const choices =
-              Array.isArray(
-                existing.choices
-              )
-                ? existing.choices
-                    .slice(0, 4)
-                    .map(
-                      choice =>
-                        String(
-                          choice ?? ""
-                        )
-                    )
-                : [];
-
-            while (
-              choices.length < 4
-            ) {
-              choices.push("");
-            }
-
-            return {
-
-              text:
-                String(
-                  existing.text || ""
-                ),
-
-              choices,
-
-              correct:
-                Number.isInteger(
-                  existing.correct
-                )
-                  ? Math.min(
-                      Math.max(
-                        existing.correct,
-                        0
-                      ),
-                      3
-                    )
-                  : 0
-
-            };
-
-          }
-        );
-
-      return questions;
-    }
-
-    // =====================================================
-    // RENDER ARTICLE CARDS
-    // =====================================================
-
-    articles.forEach(
-      article => {
-
-        const pages =
-          normalizePages(
-            article
-          );
-
-        const games =
-          normalizeGames(
-            article
-          );
-
-        const questions =
-          normalizeQuestions(
-            article
-          );
-
-        const articleCard =
-          document.createElement(
-            "article"
-          );
-
-        articleCard.className =
-          "article-editor-card";
-
-        articleCard.dataset.articleId =
-          article.id;
-
-        articleCard.innerHTML = `
-
-          <div class="article-editor-heading">
-
-            <div>
-
-              <span class="editor-label">
-                ${escapeHTML(
-                  articleName(
-                    article.id
-                  )
-                )}
-              </span>
-
-              <h3>
-                ${escapeHTML(
-                  article.title ||
-                  "Untitled Article"
-                )}
-              </h3>
-
-            </div>
-
-            <span class="article-page-count">
-              ${pages.length} pages
+            <span>
+              4 choices per question
             </span>
 
           </div>
 
+        </div>
 
-          <!-- =================================================
-               ARTICLE BUILDER
-          ================================================== -->
+        <div id="article-editor-list">
 
-          <section class="editor-subsection">
+          <div class="notice">
+            Loading articles...
+          </div>
 
-            <div class="editor-subsection-heading">
+        </div>
+
+      </section>
+    `;
+
+    const articleList =
+      document.querySelector(
+        "#article-editor-list"
+      );
+
+    try {
+
+      // =====================================================
+      // LOAD ARTICLES
+      // =====================================================
+
+      const articlesSnapshot =
+        await getDocs(
+          collection(
+            db,
+            "articles"
+          )
+        );
+
+      const articles = [];
+
+      articlesSnapshot.forEach(
+        docSnap => {
+
+          articles.push({
+            id: docSnap.id,
+            ...docSnap.data()
+          });
+
+        }
+      );
+
+      articles.sort(
+        (a, b) =>
+          String(a.id).localeCompare(
+            String(b.id)
+          )
+      );
+
+      if (!articles.length) {
+
+        articleList.innerHTML = `
+          <div class="empty-editor-state">
+            <p>No articles found.</p>
+          </div>
+        `;
+
+        return;
+      }
+
+      // =====================================================
+      // NORMALIZE PAGES
+      // =====================================================
+
+      function normalizePages(article) {
+
+        if (
+          Array.isArray(article.pages) &&
+          article.pages.length >= 2
+        ) {
+
+          return article.pages.map(
+            (page, index) => ({
+
+              pageNumber:
+                index + 1,
+
+              paragraphs:
+                Array.isArray(
+                  page.paragraphs
+                )
+                  ? page.paragraphs
+                      .map(
+                        paragraph =>
+                          String(
+                            paragraph ?? ""
+                          )
+                      )
+                      .slice(0, 5)
+                  : []
+
+            })
+          );
+
+        }
+
+        let oldParagraphs = [];
+
+        if (
+          Array.isArray(
+            article.paragraphs
+          )
+        ) {
+
+          oldParagraphs =
+            article.paragraphs.map(
+              paragraph =>
+                String(
+                  paragraph ?? ""
+                )
+            );
+
+        } else if (
+          Array.isArray(
+            article.sections
+          )
+        ) {
+
+          oldParagraphs =
+            article.sections.flatMap(
+              section => {
+
+                if (
+                  !Array.isArray(
+                    section.paragraphs
+                  )
+                ) {
+                  return [];
+                }
+
+                return section.paragraphs.map(
+                  paragraph =>
+                    String(
+                      paragraph ?? ""
+                    )
+                );
+
+              }
+            );
+
+        } else if (
+          article.body
+        ) {
+
+          oldParagraphs =
+            String(
+              article.body
+            )
+              .split(/\n\s*\n/)
+              .map(
+                paragraph =>
+                  paragraph.trim()
+              )
+              .filter(Boolean);
+
+        }
+
+        const pages = [];
+
+        for (
+          let i = 0;
+          i < oldParagraphs.length;
+          i += 5
+        ) {
+
+          pages.push({
+
+            pageNumber:
+              pages.length + 1,
+
+            paragraphs:
+              oldParagraphs.slice(
+                i,
+                i + 5
+              )
+
+          });
+
+        }
+
+        while (
+          pages.length < 2
+        ) {
+
+          pages.push({
+
+            pageNumber:
+              pages.length + 1,
+
+            paragraphs: []
+
+          });
+
+        }
+
+        return pages;
+      }
+
+      // =====================================================
+      // NORMALIZE GAMES
+      // =====================================================
+
+      function normalizeGames(article) {
+
+        if (
+          !Array.isArray(
+            article.games
+          )
+        ) {
+          return [];
+        }
+
+        return article.games.map(
+          game => {
+
+            const normalized = {
+
+              type:
+                game.type ||
+                "jumbled",
+
+              afterPage:
+                Number(
+                  game.afterPage || 1
+                )
+
+            };
+
+            if (
+              normalized.type ===
+              "jumbled"
+            ) {
+
+              normalized.answer =
+                String(
+                  game.answer || ""
+                );
+
+              normalized.scrambled =
+                String(
+                  game.scrambled || ""
+                );
+
+            }
+
+            if (
+              normalized.type ===
+              "fourPics"
+            ) {
+
+              normalized.images =
+                Array.isArray(
+                  game.images
+                )
+                  ? [
+                      String(
+                        game.images[0] || ""
+                      ),
+                      String(
+                        game.images[1] || ""
+                      ),
+                      String(
+                        game.images[2] || ""
+                      ),
+                      String(
+                        game.images[3] || ""
+                      )
+                    ]
+                  : [
+                      "",
+                      "",
+                      "",
+                      ""
+                    ];
+
+              normalized.answer =
+                String(
+                  game.answer || ""
+                );
+
+            }
+
+            if (
+              normalized.type ===
+              "crossword"
+            ) {
+
+              normalized.size =
+                Number(
+                  game.size || 8
+                );
+
+              normalized.words =
+                Array.isArray(
+                  game.words
+                )
+                  ? game.words.map(
+                      word => ({
+
+                        answer:
+                          String(
+                            word.answer || ""
+                          ),
+
+                        clue:
+                          String(
+                            word.clue || ""
+                          ),
+
+                        row:
+                          Number(
+                            word.row || 1
+                          ),
+
+                        column:
+                          Number(
+                            word.column || 1
+                          ),
+
+                        direction:
+                          word.direction ===
+                          "down"
+                            ? "down"
+                            : "across"
+
+                      })
+                    )
+                  : [];
+
+            }
+
+            return normalized;
+
+          }
+        );
+      }
+
+      // =====================================================
+      // NORMALIZE QUIZ
+      // =====================================================
+
+      function normalizeQuestions(article) {
+
+        const source =
+          Array.isArray(
+            article.questions
+          )
+            ? article.questions
+            : [];
+
+        const questions =
+          Array.from(
+            { length: 5 },
+            (_, index) => {
+
+              const existing =
+                source[index] || {};
+
+              const choices =
+                Array.isArray(
+                  existing.choices
+                )
+                  ? existing.choices
+                      .slice(0, 4)
+                      .map(
+                        choice =>
+                          String(
+                            choice ?? ""
+                          )
+                      )
+                  : [];
+
+              while (
+                choices.length < 4
+              ) {
+                choices.push("");
+              }
+
+              return {
+
+                text:
+                  String(
+                    existing.text || ""
+                  ),
+
+                choices,
+
+                correct:
+                  Number.isInteger(
+                    existing.correct
+                  )
+                    ? Math.min(
+                        Math.max(
+                          existing.correct,
+                          0
+                        ),
+                        3
+                      )
+                    : 0
+
+              };
+
+            }
+          );
+
+        return questions;
+      }
+
+      // =====================================================
+      // RENDER ARTICLE CARDS
+      // =====================================================
+
+      articles.forEach(
+        article => {
+
+          const pages =
+            normalizePages(
+              article
+            );
+
+          const games =
+            normalizeGames(
+              article
+            );
+
+          const questions =
+            normalizeQuestions(
+              article
+            );
+
+          const articleCard =
+            document.createElement(
+              "article"
+            );
+
+          articleCard.className =
+            "article-editor-card";
+
+          articleCard.dataset.articleId =
+            article.id;
+
+          articleCard.innerHTML = `
+
+            <!-- =================================================
+                 ARTICLE HEADER
+            ================================================== -->
+
+            <div class="article-editor-heading">
 
               <div>
 
                 <span class="editor-label">
-                  01
+                  ${escapeHTML(
+                    articleName(
+                      article.id
+                    )
+                  )}
                 </span>
 
-                <h3>
-                  Article Builder
+                <h3 class="article-editor-title">
+                  ${escapeHTML(
+                    article.title ||
+                    "Untitled Article"
+                  )}
                 </h3>
-
-                <p class="small">
-                  Build your article page by page.
-                  Each page can contain up to 5 paragraphs.
-                </p>
 
               </div>
 
+              <span class="article-page-count">
+                ${pages.length} pages
+              </span>
+
             </div>
 
-            <div class="article-pages"></div>
 
-            <div class="article-card-footer">
+            <!-- =================================================
+                 ARTICLE DETAILS
+            ================================================== -->
+
+            <section class="editor-subsection article-details-editor">
+
+              <div class="editor-subsection-heading">
+
+                <div>
+
+                  <span class="editor-label">
+                    ARTICLE DETAILS
+                  </span>
+
+                  <h3>
+                    Article Information
+                  </h3>
+
+                  <p class="small">
+                    Edit the title and image that
+                    respondents will see.
+                  </p>
+
+                </div>
+
+              </div>
+
+
+              <div class="form-group">
+
+                <label>
+                  Article Title
+                </label>
+
+                <input
+                  type="text"
+                  class="article-title-input"
+                  value="${escapeAttr(
+                    article.title || ""
+                  )}"
+                  placeholder="Enter article title..."
+                >
+
+              </div>
+
+
+              <div class="form-group">
+
+                <label>
+                  Article Image URL
+                </label>
+
+                <input
+                  type="url"
+                  class="article-image-input"
+                  value="${escapeAttr(
+                    article.image || ""
+                  )}"
+                  placeholder="https://example.com/image.jpg"
+                >
+
+                <small class="small">
+                  Paste the direct URL of the image.
+                </small>
+
+              </div>
+
+
+              <div class="article-image-preview-wrap">
+
+                <label>
+                  Image Preview
+                </label>
+
+                <div class="article-image-preview">
+
+                  ${
+                    article.image
+                      ? `
+                        <img
+                          src="${escapeAttr(
+                            article.image
+                          )}"
+                          alt="Article image preview"
+                        >
+                      `
+                      : `
+                        <div class="notice">
+                          No image selected yet.
+                        </div>
+                      `
+                  }
+
+                </div>
+
+              </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 ARTICLE BUILDER
+            ================================================== -->
+
+            <section class="editor-subsection">
+
+              <div class="editor-subsection-heading">
+
+                <div>
+
+                  <span class="editor-label">
+                    01
+                  </span>
+
+                  <h3>
+                    Article Builder
+                  </h3>
+
+                  <p class="small">
+                    Build your article page by page.
+                    Each page can contain up to 5 paragraphs.
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div class="article-pages"></div>
+
+              <div class="article-card-footer">
+
+                <button
+                  type="button"
+                  class="add-page-btn article-add-page-btn"
+                >
+                  <span>＋</span>
+                  Add Page
+                </button>
+
+              </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 GAME EDITOR
+            ================================================== -->
+
+            <section class="editor-subsection game-editor-section">
+
+              <div class="editor-subsection-heading">
+
+                <div>
+
+                  <span class="editor-label">
+                    02
+                  </span>
+
+                  <h3>
+                    Game Editor
+                  </h3>
+
+                  <p class="small">
+                    Add interactive games that appear
+                    after a selected article page.
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div class="game-list"></div>
 
               <button
                 type="button"
-                class="add-page-btn article-add-page-btn"
+                class="secondary-btn add-game-btn"
               >
-                <span>＋</span>
-                Add Page
+                ＋ Add Game
               </button>
 
-            </div>
-
-          </section>
+            </section>
 
 
-          <!-- =================================================
-               GAME EDITOR
-          ================================================== -->
+            <!-- =================================================
+                 QUIZ EDITOR
+            ================================================== -->
 
-          <section class="editor-subsection game-editor-section">
+            <section class="editor-subsection quiz-editor-section">
 
-            <div class="editor-subsection-heading">
+              <div class="editor-subsection-heading">
 
-              <div>
+                <div>
 
-                <span class="editor-label">
-                  02
-                </span>
+                  <span class="editor-label">
+                    03
+                  </span>
 
-                <h3>
-                  Game Editor
-                </h3>
+                  <h3>
+                    Quiz Editor
+                  </h3>
 
-                <p class="small">
-                  Add interactive games that appear
-                  after a selected article page.
-                </p>
+                  <p class="small">
+                    Each article must have exactly
+                    5 questions with 4 choices each.
+                  </p>
 
-              </div>
-
-            </div>
-
-            <div class="game-list"></div>
-
-            <button
-              type="button"
-              class="secondary-btn add-game-btn"
-            >
-              ＋ Add Game
-            </button>
-
-          </section>
-
-
-          <!-- =================================================
-               QUIZ EDITOR
-          ================================================== -->
-
-          <section class="editor-subsection quiz-editor-section">
-
-            <div class="editor-subsection-heading">
-
-              <div>
-
-                <span class="editor-label">
-                  03
-                </span>
-
-                <h3>
-                  Quiz Editor
-                </h3>
-
-                <p class="small">
-                  Each article must have exactly
-                  5 questions with 4 choices each.
-                </p>
+                </div>
 
               </div>
 
-            </div>
+              <div class="quiz-list"></div>
 
-            <div class="quiz-list"></div>
-
-          </section>
+            </section>
 
 
-          <!-- =================================================
-               SAVE
-          ================================================== -->
+            <!-- =================================================
+                 SAVE
+            ================================================== -->
 
-          <section class="editor-save-section">
+            <section class="editor-save-section">
 
-            <button
-              type="button"
-              class="save-article-btn primary-btn"
-            >
-              Save Article
-            </button>
+              <button
+                type="button"
+                class="save-article-btn primary-btn"
+              >
+                Save Article
+              </button>
 
-            <div class="article-save-status"></div>
+              <div class="article-save-status"></div>
 
-          </section>
+            </section>
 
-        `;
+          `;
 
-        const pagesContainer =
-          articleCard.querySelector(
-            ".article-pages"
+
+          // =====================================================
+          // ELEMENTS
+          // =====================================================
+
+          const pagesContainer =
+            articleCard.querySelector(
+              ".article-pages"
+            );
+
+          const gameList =
+            articleCard.querySelector(
+              ".game-list"
+            );
+
+          const quizList =
+            articleCard.querySelector(
+              ".quiz-list"
+            );
+
+          const pageCountLabel =
+            articleCard.querySelector(
+              ".article-page-count"
+            );
+
+          const saveStatus =
+            articleCard.querySelector(
+              ".article-save-status"
+            );
+
+          const articleTitleInput =
+            articleCard.querySelector(
+              ".article-title-input"
+            );
+
+          const articleImageInput =
+            articleCard.querySelector(
+              ".article-image-input"
+            );
+
+          const articleTitleDisplay =
+            articleCard.querySelector(
+              ".article-editor-title"
+            );
+
+          const articleImagePreview =
+            articleCard.querySelector(
+              ".article-image-preview"
+            );
+
+
+          // =====================================================
+          // LIVE ARTICLE TITLE PREVIEW
+          // =====================================================
+
+          articleTitleInput.addEventListener(
+            "input",
+            () => {
+
+              const title =
+                articleTitleInput.value.trim();
+
+              articleTitleDisplay.textContent =
+                title ||
+                "Untitled Article";
+
+            }
           );
 
-        const gameList =
-          articleCard.querySelector(
-            ".game-list"
-          );
 
-        const quizList =
-          articleCard.querySelector(
-            ".quiz-list"
-          );
+          // =====================================================
+          // LIVE ARTICLE IMAGE PREVIEW
+          // =====================================================
 
-        const pageCountLabel =
-          articleCard.querySelector(
-            ".article-page-count"
-          );
+          articleImageInput.addEventListener(
+            "input",
+            () => {
 
-        const saveStatus =
-          articleCard.querySelector(
-            ".article-save-status"
-          );
+              const imageUrl =
+                articleImageInput.value.trim();
 
+              if (!imageUrl) {
 
-        // =====================================================
-        // PAGE OPTIONS
-        // =====================================================
-
-        function pageOptions(
-          selectedPage
-        ) {
-
-          return pages
-            .map(
-              (
-                page,
-                index
-              ) => {
-
-                const number =
-                  index + 1;
-
-                return `
-                  <option
-                    value="${number}"
-                    ${
-                      Number(
-                        selectedPage
-                      ) === number
-                        ? "selected"
-                        : ""
-                    }
-                  >
-                    Page ${number}
-                  </option>
+                articleImagePreview.innerHTML = `
+                  <div class="notice">
+                    No image selected yet.
+                  </div>
                 `;
 
+                return;
               }
-            )
-            .join("");
 
-        }
+              articleImagePreview.innerHTML = `
+                <img
+                  src="${escapeAttr(
+                    imageUrl
+                  )}"
+                  alt="Article image preview"
+                >
+              `;
 
-
-        // =====================================================
-        // RENDER PAGES
-        // =====================================================
-
-        function renderPages() {
-
-          pagesContainer.innerHTML =
-            "";
-
-          pages.forEach(
-            (
-              page,
-              pageIndex
-            ) => {
-
-              page.pageNumber =
-                pageIndex + 1;
-
-              const pageCard =
-                document.createElement(
-                  "section"
+              const image =
+                articleImagePreview.querySelector(
+                  "img"
                 );
 
-              pageCard.className =
-                "article-page-card";
+              image.addEventListener(
+                "error",
+                () => {
 
-              pageCard.innerHTML = `
+                  articleImagePreview.innerHTML = `
+                    <div class="error">
+                      Image could not be loaded.
+                      Check if the URL is correct.
+                    </div>
+                  `;
 
-                <div class="page-card-header">
+                }
+              );
 
-                  <div>
+            }
+          );
 
-                    <span class="page-kicker">
-                      ARTICLE PAGE
-                    </span>
 
-                    <h4>
-                      Page ${
-                        pageIndex + 1
+          // =====================================================
+          // PAGE OPTIONS
+          // =====================================================
+
+          function pageOptions(
+            selectedPage
+          ) {
+
+            return pages
+              .map(
+                (
+                  page,
+                  index
+                ) => {
+
+                  const number =
+                    index + 1;
+
+                  return `
+                    <option
+                      value="${number}"
+                      ${
+                        Number(
+                          selectedPage
+                        ) === number
+                          ? "selected"
+                          : ""
                       }
-                    </h4>
+                    >
+                      Page ${number}
+                    </option>
+                  `;
+
+                }
+              )
+              .join("");
+
+          }
+
+
+          // =====================================================
+          // RENDER PAGES
+          // =====================================================
+
+          function renderPages() {
+
+            pagesContainer.innerHTML =
+              "";
+
+            pages.forEach(
+              (
+                page,
+                pageIndex
+              ) => {
+
+                page.pageNumber =
+                  pageIndex + 1;
+
+                const pageCard =
+                  document.createElement(
+                    "section"
+                  );
+
+                pageCard.className =
+                  "article-page-card";
+
+                pageCard.innerHTML = `
+
+                  <div class="page-card-header">
+
+                    <div>
+
+                      <span class="page-kicker">
+                        ARTICLE PAGE
+                      </span>
+
+                      <h4>
+                        Page ${
+                          pageIndex + 1
+                        }
+                      </h4>
+
+                    </div>
+
+                    ${
+                      pages.length > 2
+                        ? `
+                          <button
+                            type="button"
+                            class="remove-page-btn"
+                          >
+                            Remove Page
+                          </button>
+                        `
+                        : ""
+                    }
 
                   </div>
 
-                  ${
-                    pages.length > 2
-                      ? `
-                        <button
-                          type="button"
-                          class="remove-page-btn"
-                        >
-                          Remove Page
-                        </button>
-                      `
-                      : ""
-                  }
+                  <div class="page-paragraphs"></div>
 
-                </div>
-
-                <div class="page-paragraphs"></div>
-
-                <div class="page-card-footer">
-
-                  <button
-                    type="button"
-                    class="add-paragraph-btn"
-                    ${
-                      page.paragraphs.length >= 5
-                        ? "disabled"
-                        : ""
-                    }
-                  >
-                    <span>＋</span>
-                    Add Paragraph
-                  </button>
-
-                  ${
-                    page.paragraphs.length >= 5
-                      ? `
-                        <small class="paragraph-limit">
-                          Maximum of 5 paragraphs on this page.
-                        </small>
-                      `
-                      : ""
-                  }
-
-                </div>
-
-              `;
-
-              const paragraphContainer =
-                pageCard.querySelector(
-                  ".page-paragraphs"
-                );
-
-
-              // ===========================================
-              // PARAGRAPHS
-              // ===========================================
-
-              page.paragraphs.forEach(
-                (
-                  paragraph,
-                  paragraphIndex
-                ) => {
-
-                  const paragraphRow =
-                    document.createElement(
-                      "div"
-                    );
-
-                  paragraphRow.className =
-                    "article-paragraph";
-
-                  paragraphRow.innerHTML = `
-
-                    <div class="paragraph-number">
-                      ${
-                        paragraphIndex + 1
-                      }
-                    </div>
-
-                    <textarea
-                      class="paragraph-input"
-                      rows="5"
-                      placeholder="Write paragraph ${
-                        paragraphIndex + 1
-                      }..."
-                    ></textarea>
+                  <div class="page-card-footer">
 
                     <button
                       type="button"
-                      class="remove-paragraph-btn"
-                      title="Remove paragraph"
+                      class="add-paragraph-btn"
+                      ${
+                        page.paragraphs.length >= 5
+                          ? "disabled"
+                          : ""
+                      }
                     >
-                      ×
+                      <span>＋</span>
+                      Add Paragraph
                     </button>
 
-                  `;
-
-                  const textarea =
-                    paragraphRow.querySelector(
-                      ".paragraph-input"
-                    );
-
-                  textarea.value =
-                    paragraph;
-
-                  textarea.addEventListener(
-                    "input",
-                    () => {
-
-                      page.paragraphs[
-                        paragraphIndex
-                      ] =
-                        textarea.value;
-
+                    ${
+                      page.paragraphs.length >= 5
+                        ? `
+                          <small class="paragraph-limit">
+                            Maximum of 5 paragraphs on this page.
+                          </small>
+                        `
+                        : ""
                     }
+
+                  </div>
+
+                `;
+
+                const paragraphContainer =
+                  pageCard.querySelector(
+                    ".page-paragraphs"
                   );
 
-                  paragraphRow
-                    .querySelector(
-                      ".remove-paragraph-btn"
-                    )
-                    .addEventListener(
-                      "click",
+
+                // ===========================================
+                // PARAGRAPHS
+                // ===========================================
+
+                page.paragraphs.forEach(
+                  (
+                    paragraph,
+                    paragraphIndex
+                  ) => {
+
+                    const paragraphRow =
+                      document.createElement(
+                        "div"
+                      );
+
+                    paragraphRow.className =
+                      "article-paragraph";
+
+                    paragraphRow.innerHTML = `
+
+                      <div class="paragraph-number">
+                        ${
+                          paragraphIndex + 1
+                        }
+                      </div>
+
+                      <textarea
+                        class="paragraph-input"
+                        rows="5"
+                        placeholder="Write paragraph ${
+                          paragraphIndex + 1
+                        }..."
+                      ></textarea>
+
+                      <button
+                        type="button"
+                        class="remove-paragraph-btn"
+                        title="Remove paragraph"
+                      >
+                        ×
+                      </button>
+
+                    `;
+
+                    const textarea =
+                      paragraphRow.querySelector(
+                        ".paragraph-input"
+                      );
+
+                    textarea.value =
+                      paragraph;
+
+                    textarea.addEventListener(
+                      "input",
                       () => {
 
-                        page.paragraphs.splice(
-                          paragraphIndex,
-                          1
-                        );
-
-                        renderPages();
+                        page.paragraphs[
+                          paragraphIndex
+                        ] =
+                          textarea.value;
 
                       }
                     );
 
-                  paragraphContainer.appendChild(
                     paragraphRow
+                      .querySelector(
+                        ".remove-paragraph-btn"
+                      )
+                      .addEventListener(
+                        "click",
+                        () => {
+
+                          page.paragraphs.splice(
+                            paragraphIndex,
+                            1
+                          );
+
+                          renderPages();
+
+                        }
+                      );
+
+                    paragraphContainer.appendChild(
+                      paragraphRow
+                    );
+
+                  }
+                );
+
+
+                // ===========================================
+                // ADD PARAGRAPH
+                // ===========================================
+
+                const addParagraphButton =
+                  pageCard.querySelector(
+                    ".add-paragraph-btn"
                   );
 
-                }
-              );
-
-
-              // ===========================================
-              // ADD PARAGRAPH
-              // ===========================================
-
-              const addParagraphButton =
-                pageCard.querySelector(
-                  ".add-paragraph-btn"
-                );
-
-              addParagraphButton.addEventListener(
-                "click",
-                () => {
-
-                  if (
-                    page.paragraphs.length >= 5
-                  ) {
-                    return;
-                  }
-
-                  page.paragraphs.push("");
-
-                  renderPages();
-
-                }
-              );
-
-
-              // ===========================================
-              // REMOVE PAGE
-              // ===========================================
-
-              const removePageButton =
-                pageCard.querySelector(
-                  ".remove-page-btn"
-                );
-
-              if (
-                removePageButton
-              ) {
-
-                removePageButton.addEventListener(
+                addParagraphButton.addEventListener(
                   "click",
                   () => {
 
                     if (
-                      pages.length <= 2
+                      page.paragraphs.length >= 5
                     ) {
-
-                      alert(
-                        "An article must have at least 2 pages."
-                      );
-
                       return;
                     }
 
-                    const confirmed =
-                      confirm(
-                        `Remove Page ${
-                          pageIndex + 1
-                        }?`
-                      );
-
-                    if (!confirmed) {
-                      return;
-                    }
-
-                    pages.splice(
-                      pageIndex,
-                      1
-                    );
-
-                    // Fix games that were attached
-                    // to the removed page.
-                    games.forEach(
-                      game => {
-
-                        if (
-                          Number(
-                            game.afterPage
-                          ) ===
-                          pageIndex + 1
-                        ) {
-
-                          game.afterPage =
-                            Math.max(
-                              1,
-                              Math.min(
-                                pageIndex,
-                                pages.length
-                              )
-                            );
-
-                        } else if (
-                          Number(
-                            game.afterPage
-                          ) >
-                          pageIndex + 1
-                        ) {
-
-                          game.afterPage =
-                            Number(
-                              game.afterPage
-                            ) - 1;
-
-                        }
-
-                      }
-                    );
+                    page.paragraphs.push("");
 
                     renderPages();
-                    renderGames();
 
                   }
+                );
+
+
+                // ===========================================
+                // REMOVE PAGE
+                // ===========================================
+
+                const removePageButton =
+                  pageCard.querySelector(
+                    ".remove-page-btn"
+                  );
+
+                if (
+                  removePageButton
+                ) {
+
+                  removePageButton.addEventListener(
+                    "click",
+                    () => {
+
+                      if (
+                        pages.length <= 2
+                      ) {
+
+                        alert(
+                          "An article must have at least 2 pages."
+                        );
+
+                        return;
+                      }
+
+                      const confirmed =
+                        confirm(
+                          `Remove Page ${
+                            pageIndex + 1
+                          }?`
+                        );
+
+                      if (!confirmed) {
+                        return;
+                      }
+
+                      pages.splice(
+                        pageIndex,
+                        1
+                      );
+
+
+                      // Fix games attached
+                      // to affected pages.
+                      games.forEach(
+                        game => {
+
+                          if (
+                            Number(
+                              game.afterPage
+                            ) ===
+                            pageIndex + 1
+                          ) {
+
+                            game.afterPage =
+                              Math.max(
+                                1,
+                                Math.min(
+                                  pageIndex,
+                                  pages.length
+                                )
+                              );
+
+                          } else if (
+                            Number(
+                              game.afterPage
+                            ) >
+                            pageIndex + 1
+                          ) {
+
+                            game.afterPage =
+                              Number(
+                                game.afterPage
+                              ) - 1;
+
+                          }
+
+                        }
+                      );
+
+                      renderPages();
+                      renderGames();
+
+                    }
+                  );
+
+                }
+
+                pagesContainer.appendChild(
+                  pageCard
                 );
 
               }
+            );
 
-              pagesContainer.appendChild(
-                pageCard
-              );
+            pageCountLabel.textContent =
+              `${pages.length} pages`;
 
+          }
+
+
+          // =====================================================
+          // GAME HELPERS
+          // =====================================================
+
+          function gameTypeLabel(
+            type
+          ) {
+
+            if (
+              type ===
+              "fourPics"
+            ) {
+              return "4 Pics 1 Word";
             }
-          );
 
-          pageCountLabel.textContent =
-            `${pages.length} pages`;
+            if (
+              type ===
+              "crossword"
+            ) {
+              return "Crossword";
+            }
 
-        }
+            return "Jumbled Words";
 
-
-        // =====================================================
-        // GAME HELPERS
-        // =====================================================
-
-        function gameTypeLabel(
-          type
-        ) {
-
-          if (
-            type ===
-            "fourPics"
-          ) {
-            return "4 Pics 1 Word";
           }
 
-          if (
-            type ===
-            "crossword"
+
+          // =====================================================
+          // CROSSWORD WORDS
+          // =====================================================
+
+          function renderCrosswordWords(
+            game,
+            wordsContainer
           ) {
-            return "Crossword";
-          }
 
-          return "Jumbled Words";
+            wordsContainer.innerHTML =
+              "";
 
-        }
+            if (
+              !Array.isArray(
+                game.words
+              )
+            ) {
+              game.words = [];
+            }
 
+            game.words.forEach(
+              (
+                word,
+                wordIndex
+              ) => {
 
-        function renderCrosswordWords(
-          game,
-          wordsContainer
-        ) {
-
-          wordsContainer.innerHTML =
-            "";
-
-          if (
-            !Array.isArray(
-              game.words
-            )
-          ) {
-            game.words = [];
-          }
-
-          game.words.forEach(
-            (
-              word,
-              wordIndex
-            ) => {
-
-              const row =
-                document.createElement(
-                  "div"
-                );
-
-              row.className =
-                "crossword-word-item";
-
-              row.innerHTML = `
-
-                <div class="editor-item-heading">
-
-                  <strong>
-                    Word ${
-                      wordIndex + 1
-                    }
-                  </strong>
-
-                  <button
-                    type="button"
-                    class="remove-crossword-word-btn secondary-btn"
-                  >
-                    Remove
-                  </button>
-
-                </div>
-
-                <div class="editor-question-grid">
-
-                  <div class="form-group">
-
-                    <label>
-                      Answer
-                    </label>
-
-                    <input
-                      type="text"
-                      class="crossword-answer"
-                      placeholder="Example: MEDIA"
-                    >
-
-                  </div>
-
-                  <div class="form-group">
-
-                    <label>
-                      Clue
-                    </label>
-
-                    <input
-                      type="text"
-                      class="crossword-clue"
-                      placeholder="Clue for this word"
-                    >
-
-                  </div>
-
-                </div>
-
-                <div class="editor-question-grid">
-
-                  <div class="form-group">
-
-                    <label>
-                      Starting Row
-                    </label>
-
-                    <input
-                      type="number"
-                      min="1"
-                      class="crossword-row"
-                    >
-
-                  </div>
-
-                  <div class="form-group">
-
-                    <label>
-                      Starting Column
-                    </label>
-
-                    <input
-                      type="number"
-                      min="1"
-                      class="crossword-column"
-                    >
-
-                  </div>
-
-                  <div class="form-group">
-
-                    <label>
-                      Direction
-                    </label>
-
-                    <select class="crossword-direction">
-
-                      <option value="across">
-                        Across
-                      </option>
-
-                      <option value="down">
-                        Down
-                      </option>
-
-                    </select>
-
-                  </div>
-
-                </div>
-
-              `;
-
-              const answerInput =
-                row.querySelector(
-                  ".crossword-answer"
-                );
-
-              const clueInput =
-                row.querySelector(
-                  ".crossword-clue"
-                );
-
-              const rowInput =
-                row.querySelector(
-                  ".crossword-row"
-                );
-
-              const columnInput =
-                row.querySelector(
-                  ".crossword-column"
-                );
-
-              const directionInput =
-                row.querySelector(
-                  ".crossword-direction"
-                );
-
-              answerInput.value =
-                word.answer || "";
-
-              clueInput.value =
-                word.clue || "";
-
-              rowInput.value =
-                word.row || 1;
-
-              columnInput.value =
-                word.column || 1;
-
-              directionInput.value =
-                word.direction ===
-                "down"
-                  ? "down"
-                  : "across";
-
-
-              answerInput.addEventListener(
-                "input",
-                () => {
-                  word.answer =
-                    answerInput.value;
-                }
-              );
-
-              clueInput.addEventListener(
-                "input",
-                () => {
-                  word.clue =
-                    clueInput.value;
-                }
-              );
-
-              rowInput.addEventListener(
-                "input",
-                () => {
-                  word.row =
-                    Number(
-                      rowInput.value
-                    );
-                }
-              );
-
-              columnInput.addEventListener(
-                "input",
-                () => {
-                  word.column =
-                    Number(
-                      columnInput.value
-                    );
-                }
-              );
-
-              directionInput.addEventListener(
-                "change",
-                () => {
-                  word.direction =
-                    directionInput.value;
-                }
-              );
-
-
-              row.querySelector(
-                ".remove-crossword-word-btn"
-              ).addEventListener(
-                "click",
-                () => {
-
-                  game.words.splice(
-                    wordIndex,
-                    1
+                const row =
+                  document.createElement(
+                    "div"
                   );
 
-                  renderGames();
+                row.className =
+                  "crossword-word-item";
 
-                }
-              );
+                row.innerHTML = `
 
+                  <div class="editor-item-heading">
 
-              wordsContainer.appendChild(
-                row
-              );
-
-            }
-          );
-
-        }
-
-
-        // =====================================================
-        // RENDER GAMES
-        // =====================================================
-
-        function renderGames() {
-
-          gameList.innerHTML =
-            "";
-
-          if (
-            games.length === 0
-          ) {
-
-            gameList.innerHTML = `
-              <div class="notice">
-                No games added yet.
-                Click "Add Game" to add an interactive game.
-              </div>
-            `;
-
-            return;
-          }
-
-          games.forEach(
-            (
-              game,
-              gameIndex
-            ) => {
-
-              const gameCard =
-                document.createElement(
-                  "div"
-                );
-
-              gameCard.className =
-                "game-editor-card";
-
-              gameCard.innerHTML = `
-
-                <div class="editor-item-heading">
-
-                  <div>
-
-                    <span class="editor-label">
-                      GAME ${
-                        gameIndex + 1
+                    <strong>
+                      Word ${
+                        wordIndex + 1
                       }
-                    </span>
+                    </strong>
 
-                    <h4>
-                      ${escapeHTML(
-                        gameTypeLabel(
-                          game.type
-                        )
-                      )}
-                    </h4>
-
-                  </div>
-
-                  <button
-                    type="button"
-                    class="remove-game-btn secondary-btn"
-                  >
-                    Remove Game
-                  </button>
-
-                </div>
-
-
-                <div class="editor-question-grid">
-
-                  <div class="form-group">
-
-                    <label>
-                      Game Type
-                    </label>
-
-                    <select
-                      class="game-type-select"
+                    <button
+                      type="button"
+                      class="remove-crossword-word-btn secondary-btn"
                     >
-
-                      <option
-                        value="jumbled"
-                        ${
-                          game.type ===
-                          "jumbled"
-                            ? "selected"
-                            : ""
-                        }
-                      >
-                        Jumbled Words
-                      </option>
-
-                      <option
-                        value="fourPics"
-                        ${
-                          game.type ===
-                          "fourPics"
-                            ? "selected"
-                            : ""
-                        }
-                      >
-                        4 Pics 1 Word
-                      </option>
-
-                      <option
-                        value="crossword"
-                        ${
-                          game.type ===
-                          "crossword"
-                            ? "selected"
-                            : ""
-                        }
-                      >
-                        Crossword
-                      </option>
-
-                    </select>
+                      Remove
+                    </button>
 
                   </div>
 
-                  <div class="form-group">
+                  <div class="editor-question-grid">
 
-                    <label>
-                      Show After
-                    </label>
+                    <div class="form-group">
 
-                    <select
-                      class="game-after-page"
-                    >
-                      ${pageOptions(
-                        game.afterPage
-                      )}
-                    </select>
+                      <label>
+                        Answer
+                      </label>
+
+                      <input
+                        type="text"
+                        class="crossword-answer"
+                        placeholder="Example: MEDIA"
+                      >
+
+                    </div>
+
+                    <div class="form-group">
+
+                      <label>
+                        Clue
+                      </label>
+
+                      <input
+                        type="text"
+                        class="crossword-clue"
+                        placeholder="Clue for this word"
+                      >
+
+                    </div>
 
                   </div>
 
-                </div>
+                  <div class="editor-question-grid">
 
-                <div class="game-specific-editor"></div>
+                    <div class="form-group">
 
-              `;
+                      <label>
+                        Starting Row
+                      </label>
 
-              const specificEditor =
-                gameCard.querySelector(
-                  ".game-specific-editor"
-                );
+                      <input
+                        type="number"
+                        min="1"
+                        class="crossword-row"
+                      >
+
+                    </div>
+
+                    <div class="form-group">
+
+                      <label>
+                        Starting Column
+                      </label>
+
+                      <input
+                        type="number"
+                        min="1"
+                        class="crossword-column"
+                      >
+
+                    </div>
+
+                    <div class="form-group">
+
+                      <label>
+                        Direction
+                      </label>
+
+                      <select class="crossword-direction">
+
+                        <option value="across">
+                          Across
+                        </option>
+
+                        <option value="down">
+                          Down
+                        </option>
+
+                      </select>
+
+                    </div>
+
+                  </div>
+
+                `;
+
+                const answerInput =
+                  row.querySelector(
+                    ".crossword-answer"
+                  );
+
+                const clueInput =
+                  row.querySelector(
+                    ".crossword-clue"
+                  );
+
+                const rowInput =
+                  row.querySelector(
+                    ".crossword-row"
+                  );
+
+                const columnInput =
+                  row.querySelector(
+                    ".crossword-column"
+                  );
+
+                const directionInput =
+                  row.querySelector(
+                    ".crossword-direction"
+                  );
+
+                answerInput.value =
+                  word.answer || "";
+
+                clueInput.value =
+                  word.clue || "";
+
+                rowInput.value =
+                  word.row || 1;
+
+                columnInput.value =
+                  word.column || 1;
+
+                directionInput.value =
+                  word.direction ===
+                  "down"
+                    ? "down"
+                    : "across";
 
 
-              // =============================================
-              // GAME TYPE CHANGE
-              // =============================================
+                answerInput.addEventListener(
+                  "input",
+                  () => {
 
-              gameCard
-                .querySelector(
-                  ".game-type-select"
-                )
-                .addEventListener(
-                  "change",
-                  event => {
-
-                    game.type =
-                      event.target.value;
-
-                    if (
-                      game.type ===
-                      "jumbled"
-                    ) {
-
-                      game.answer =
-                        game.answer || "";
-
-                      game.scrambled =
-                        game.scrambled || "";
-
-                    }
-
-                    if (
-                      game.type ===
-                      "fourPics"
-                    ) {
-
-                      game.answer =
-                        game.answer || "";
-
-                      game.images =
-                        Array.isArray(
-                          game.images
-                        )
-                          ? game.images
-                          : [
-                              "",
-                              "",
-                              "",
-                              ""
-                            ];
-
-                      while (
-                        game.images.length <
-                        4
-                      ) {
-                        game.images.push("");
-                      }
-
-                    }
-
-                    if (
-                      game.type ===
-                      "crossword"
-                    ) {
-
-                      game.size =
-                        Number(
-                          game.size || 8
-                        );
-
-                      game.words =
-                        Array.isArray(
-                          game.words
-                        )
-                          ? game.words
-                          : [];
-
-                    }
-
-                    renderGames();
+                    word.answer =
+                      answerInput.value;
 
                   }
                 );
 
+                clueInput.addEventListener(
+                  "input",
+                  () => {
 
-              // =============================================
-              // AFTER PAGE CHANGE
-              // =============================================
+                    word.clue =
+                      clueInput.value;
 
-              gameCard
-                .querySelector(
-                  ".game-after-page"
-                )
-                .addEventListener(
-                  "change",
-                  event => {
+                  }
+                );
 
-                    game.afterPage =
+                rowInput.addEventListener(
+                  "input",
+                  () => {
+
+                    word.row =
                       Number(
-                        event.target.value
+                        rowInput.value
                       );
 
                   }
                 );
 
+                columnInput.addEventListener(
+                  "input",
+                  () => {
 
-              // =============================================
-              // REMOVE GAME
-              // =============================================
+                    word.column =
+                      Number(
+                        columnInput.value
+                      );
 
-              gameCard
-                .querySelector(
-                  ".remove-game-btn"
-                )
-                .addEventListener(
+                  }
+                );
+
+                directionInput.addEventListener(
+                  "change",
+                  () => {
+
+                    word.direction =
+                      directionInput.value;
+
+                  }
+                );
+
+
+                row.querySelector(
+                  ".remove-crossword-word-btn"
+                ).addEventListener(
                   "click",
                   () => {
 
-                    const confirmed =
-                      confirm(
-                        "Remove this game?"
-                      );
-
-                    if (!confirmed) {
-                      return;
-                    }
-
-                    games.splice(
-                      gameIndex,
+                    game.words.splice(
+                      wordIndex,
                       1
                     );
 
@@ -2568,24 +2510,493 @@
                 );
 
 
-              // =============================================
-              // JUMBLED WORDS
-              // =============================================
+                wordsContainer.appendChild(
+                  row
+                );
 
-              if (
-                game.type ===
-                "jumbled"
-              ) {
+              }
+            );
 
-                specificEditor.innerHTML = `
+          }
 
-                  <div class="game-specific-box">
 
-                    <h4>
-                      Jumbled Words Settings
-                    </h4>
+          // =====================================================
+          // RENDER GAMES
+          // =====================================================
 
-                    <div class="editor-question-grid">
+          function renderGames() {
+
+            gameList.innerHTML =
+              "";
+
+            if (
+              games.length === 0
+            ) {
+
+              gameList.innerHTML = `
+                <div class="notice">
+                  No games added yet.
+                  Click "Add Game" to add an interactive game.
+                </div>
+              `;
+
+              return;
+            }
+
+            games.forEach(
+              (
+                game,
+                gameIndex
+              ) => {
+
+                const gameCard =
+                  document.createElement(
+                    "div"
+                  );
+
+                gameCard.className =
+                  "game-editor-card";
+
+                gameCard.innerHTML = `
+
+                  <div class="editor-item-heading">
+
+                    <div>
+
+                      <span class="editor-label">
+                        GAME ${
+                          gameIndex + 1
+                        }
+                      </span>
+
+                      <h4>
+                        ${escapeHTML(
+                          gameTypeLabel(
+                            game.type
+                          )
+                        )}
+                      </h4>
+
+                    </div>
+
+                    <button
+                      type="button"
+                      class="remove-game-btn secondary-btn"
+                    >
+                      Remove Game
+                    </button>
+
+                  </div>
+
+
+                  <div class="editor-question-grid">
+
+                    <div class="form-group">
+
+                      <label>
+                        Game Type
+                      </label>
+
+                      <select
+                        class="game-type-select"
+                      >
+
+                        <option
+                          value="jumbled"
+                          ${
+                            game.type ===
+                            "jumbled"
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          Jumbled Words
+                        </option>
+
+                        <option
+                          value="fourPics"
+                          ${
+                            game.type ===
+                            "fourPics"
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          4 Pics 1 Word
+                        </option>
+
+                        <option
+                          value="crossword"
+                          ${
+                            game.type ===
+                            "crossword"
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          Crossword
+                        </option>
+
+                      </select>
+
+                    </div>
+
+                    <div class="form-group">
+
+                      <label>
+                        Show After
+                      </label>
+
+                      <select
+                        class="game-after-page"
+                      >
+                        ${pageOptions(
+                          game.afterPage
+                        )}
+                      </select>
+
+                    </div>
+
+                  </div>
+
+                  <div class="game-specific-editor"></div>
+
+                `;
+
+                const specificEditor =
+                  gameCard.querySelector(
+                    ".game-specific-editor"
+                  );
+
+
+                // =============================================
+                // GAME TYPE CHANGE
+                // =============================================
+
+                gameCard
+                  .querySelector(
+                    ".game-type-select"
+                  )
+                  .addEventListener(
+                    "change",
+                    event => {
+
+                      game.type =
+                        event.target.value;
+
+                      if (
+                        game.type ===
+                        "jumbled"
+                      ) {
+
+                        game.answer =
+                          game.answer || "";
+
+                        game.scrambled =
+                          game.scrambled || "";
+
+                      }
+
+                      if (
+                        game.type ===
+                        "fourPics"
+                      ) {
+
+                        game.answer =
+                          game.answer || "";
+
+                        game.images =
+                          Array.isArray(
+                            game.images
+                          )
+                            ? game.images
+                            : [
+                                "",
+                                "",
+                                "",
+                                ""
+                              ];
+
+                        while (
+                          game.images.length <
+                          4
+                        ) {
+                          game.images.push("");
+                        }
+
+                      }
+
+                      if (
+                        game.type ===
+                        "crossword"
+                      ) {
+
+                        game.size =
+                          Number(
+                            game.size || 8
+                          );
+
+                        game.words =
+                          Array.isArray(
+                            game.words
+                          )
+                            ? game.words
+                            : [];
+
+                      }
+
+                      renderGames();
+
+                    }
+                  );
+
+
+                // =============================================
+                // AFTER PAGE CHANGE
+                // =============================================
+
+                gameCard
+                  .querySelector(
+                    ".game-after-page"
+                  )
+                  .addEventListener(
+                    "change",
+                    event => {
+
+                      game.afterPage =
+                        Number(
+                          event.target.value
+                        );
+
+                    }
+                  );
+
+
+                // =============================================
+                // REMOVE GAME
+                // =============================================
+
+                gameCard
+                  .querySelector(
+                    ".remove-game-btn"
+                  )
+                  .addEventListener(
+                    "click",
+                    () => {
+
+                      const confirmed =
+                        confirm(
+                          "Remove this game?"
+                        );
+
+                      if (!confirmed) {
+                        return;
+                      }
+
+                      games.splice(
+                        gameIndex,
+                        1
+                      );
+
+                      renderGames();
+
+                    }
+                  );
+
+
+                // =============================================
+                // JUMBLED WORDS
+                // =============================================
+
+                if (
+                  game.type ===
+                  "jumbled"
+                ) {
+
+                  specificEditor.innerHTML = `
+
+                    <div class="game-specific-box">
+
+                      <h4>
+                        Jumbled Words Settings
+                      </h4>
+
+                      <div class="editor-question-grid">
+
+                        <div class="form-group">
+
+                          <label>
+                            Correct Answer
+                          </label>
+
+                          <input
+                            type="text"
+                            class="jumbled-answer"
+                            placeholder="Example: COMMUNICATION"
+                          >
+
+                        </div>
+
+                        <div class="form-group">
+
+                          <label>
+                            Scrambled Letters
+                          </label>
+
+                          <input
+                            type="text"
+                            class="jumbled-scrambled"
+                            placeholder="Example: N I O C A M M T U C O N I"
+                          >
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  `;
+
+                  const answer =
+                    specificEditor.querySelector(
+                      ".jumbled-answer"
+                    );
+
+                  const scrambled =
+                    specificEditor.querySelector(
+                      ".jumbled-scrambled"
+                    );
+
+                  answer.value =
+                    game.answer || "";
+
+                  scrambled.value =
+                    game.scrambled || "";
+
+                  answer.addEventListener(
+                    "input",
+                    () => {
+
+                      game.answer =
+                        answer.value;
+
+                    }
+                  );
+
+                  scrambled.addEventListener(
+                    "input",
+                    () => {
+
+                      game.scrambled =
+                        scrambled.value;
+
+                    }
+                  );
+
+                }
+
+
+                // =============================================
+                // 4 PICS 1 WORD
+                // =============================================
+
+                if (
+                  game.type ===
+                  "fourPics"
+                ) {
+
+                  if (
+                    !Array.isArray(
+                      game.images
+                    )
+                  ) {
+                    game.images =
+                      [
+                        "",
+                        "",
+                        "",
+                        ""
+                      ];
+                  }
+
+                  while (
+                    game.images.length <
+                    4
+                  ) {
+                    game.images.push("");
+                  }
+
+                  specificEditor.innerHTML = `
+
+                    <div class="game-specific-box">
+
+                      <h4>
+                        4 Pics 1 Word Settings
+                      </h4>
+
+                      <div class="editor-question-grid">
+
+                        <div class="form-group">
+
+                          <label>
+                            Image 1 URL
+                          </label>
+
+                          <input
+                            type="url"
+                            class="four-pics-image"
+                            data-index="0"
+                            placeholder="https://..."
+                          >
+
+                        </div>
+
+                        <div class="form-group">
+
+                          <label>
+                            Image 2 URL
+                          </label>
+
+                          <input
+                            type="url"
+                            class="four-pics-image"
+                            data-index="1"
+                            placeholder="https://..."
+                          >
+
+                        </div>
+
+                        <div class="form-group">
+
+                          <label>
+                            Image 3 URL
+                          </label>
+
+                          <input
+                            type="url"
+                            class="four-pics-image"
+                            data-index="2"
+                            placeholder="https://..."
+                          >
+
+                        </div>
+
+                        <div class="form-group">
+
+                          <label>
+                            Image 4 URL
+                          </label>
+
+                          <input
+                            type="url"
+                            class="four-pics-image"
+                            data-index="3"
+                            placeholder="https://..."
+                          >
+
+                        </div>
+
+                      </div>
 
                       <div class="form-group">
 
@@ -2595,196 +3006,475 @@
 
                         <input
                           type="text"
-                          class="jumbled-answer"
-                          placeholder="Example: COMMUNICATION"
-                        >
-
-                      </div>
-
-                      <div class="form-group">
-
-                        <label>
-                          Scrambled Letters
-                        </label>
-
-                        <input
-                          type="text"
-                          class="jumbled-scrambled"
-                          placeholder="Example: N I O C A M M T U C O N I"
+                          class="four-pics-answer"
+                          placeholder="Example: JOURNALISM"
                         >
 
                       </div>
 
                     </div>
 
-                  </div>
+                  `;
 
-                `;
+                  specificEditor
+                    .querySelectorAll(
+                      ".four-pics-image"
+                    )
+                    .forEach(
+                      input => {
 
-                const answer =
-                  specificEditor.querySelector(
-                    ".jumbled-answer"
+                        const index =
+                          Number(
+                            input.dataset.index
+                          );
+
+                        input.value =
+                          game.images[
+                            index
+                          ] || "";
+
+                        input.addEventListener(
+                          "input",
+                          () => {
+
+                            game.images[
+                              index
+                            ] =
+                              input.value;
+
+                          }
+                        );
+
+                      }
+                    );
+
+                  const answer =
+                    specificEditor.querySelector(
+                      ".four-pics-answer"
+                    );
+
+                  answer.value =
+                    game.answer || "";
+
+                  answer.addEventListener(
+                    "input",
+                    () => {
+
+                      game.answer =
+                        answer.value;
+
+                    }
                   );
 
-                const scrambled =
-                  specificEditor.querySelector(
-                    ".jumbled-scrambled"
+                }
+
+
+                // =============================================
+                // CROSSWORD
+                // =============================================
+
+                if (
+                  game.type ===
+                  "crossword"
+                ) {
+
+                  if (
+                    !game.size
+                  ) {
+                    game.size = 8;
+                  }
+
+                  if (
+                    !Array.isArray(
+                      game.words
+                    )
+                  ) {
+                    game.words = [];
+                  }
+
+                  specificEditor.innerHTML = `
+
+                    <div class="game-specific-box">
+
+                      <h4>
+                        Crossword Settings
+                      </h4>
+
+                      <p class="small">
+                        Create the crossword by adding
+                        words, clues, starting positions,
+                        and directions.
+                      </p>
+
+                      <div class="form-group">
+
+                        <label>
+                          Grid Size
+                        </label>
+
+                        <input
+                          type="number"
+                          class="crossword-size"
+                          min="3"
+                          max="20"
+                          value="${escapeAttr(
+                            game.size
+                          )}"
+                        >
+
+                        <small class="small">
+                          Recommended: 8 × 8
+                        </small>
+
+                      </div>
+
+                      <div class="crossword-words"></div>
+
+                      <button
+                        type="button"
+                        class="secondary-btn add-crossword-word-btn"
+                      >
+                        ＋ Add Crossword Word
+                      </button>
+
+                    </div>
+
+                  `;
+
+                  const sizeInput =
+                    specificEditor.querySelector(
+                      ".crossword-size"
+                    );
+
+                  sizeInput.addEventListener(
+                    "input",
+                    () => {
+
+                      let value =
+                        Number(
+                          sizeInput.value
+                        );
+
+                      if (
+                        !Number.isFinite(
+                          value
+                        )
+                      ) {
+                        value = 8;
+                      }
+
+                      value =
+                        Math.max(
+                          3,
+                          Math.min(
+                            20,
+                            value
+                          )
+                        );
+
+                      game.size =
+                        value;
+
+                    }
                   );
 
-                answer.value =
-                  game.answer || "";
+                  const wordsContainer =
+                    specificEditor.querySelector(
+                      ".crossword-words"
+                    );
 
-                scrambled.value =
-                  game.scrambled || "";
+                  renderCrosswordWords(
+                    game,
+                    wordsContainer
+                  );
 
-                answer.addEventListener(
-                  "input",
-                  () => {
-                    game.answer =
-                      answer.value;
-                  }
-                );
+                  specificEditor
+                    .querySelector(
+                      ".add-crossword-word-btn"
+                    )
+                    .addEventListener(
+                      "click",
+                      () => {
 
-                scrambled.addEventListener(
-                  "input",
-                  () => {
-                    game.scrambled =
-                      scrambled.value;
-                  }
+                        game.words.push({
+
+                          answer: "",
+
+                          clue: "",
+
+                          row: 1,
+
+                          column: 1,
+
+                          direction:
+                            "across"
+
+                        });
+
+                        renderGames();
+
+                      }
+                    );
+
+                }
+
+                gameList.appendChild(
+                  gameCard
                 );
 
               }
+            );
+
+          }
 
 
-              // =============================================
-              // 4 PICS 1 WORD
-              // =============================================
+          // =====================================================
+          // ADD PAGE
+          // =====================================================
 
-              if (
-                game.type ===
-                "fourPics"
-              ) {
+          articleCard
+            .querySelector(
+              ".article-add-page-btn"
+            )
+            .addEventListener(
+              "click",
+              () => {
 
-                if (
-                  !Array.isArray(
-                    game.images
-                  )
-                ) {
-                  game.images =
-                    ["", "", "", ""];
-                }
+                pages.push({
 
-                while (
-                  game.images.length <
-                  4
-                ) {
-                  game.images.push("");
-                }
+                  pageNumber:
+                    pages.length + 1,
 
-                specificEditor.innerHTML = `
+                  paragraphs: []
 
-                  <div class="game-specific-box">
+                });
 
-                    <h4>
-                      4 Pics 1 Word Settings
-                    </h4>
+                renderPages();
+                renderGames();
 
-                    <div class="editor-question-grid">
+              }
+            );
 
-                      <div class="form-group">
 
-                        <label>
-                          Image 1 URL
-                        </label>
+          // =====================================================
+          // ADD GAME
+          // =====================================================
 
-                        <input
-                          type="url"
-                          class="four-pics-image"
-                          data-index="0"
-                          placeholder="https://..."
-                        >
+          articleCard
+            .querySelector(
+              ".add-game-btn"
+            )
+            .addEventListener(
+              "click",
+              () => {
 
-                      </div>
+                games.push({
 
-                      <div class="form-group">
+                  type:
+                    "jumbled",
 
-                        <label>
-                          Image 2 URL
-                        </label>
+                  afterPage:
+                    1,
 
-                        <input
-                          type="url"
-                          class="four-pics-image"
-                          data-index="1"
-                          placeholder="https://..."
-                        >
+                  answer:
+                    "",
 
-                      </div>
+                  scrambled:
+                    ""
 
-                      <div class="form-group">
+                });
 
-                        <label>
-                          Image 3 URL
-                        </label>
+                renderGames();
 
-                        <input
-                          type="url"
-                          class="four-pics-image"
-                          data-index="2"
-                          placeholder="https://..."
-                        >
+              }
+            );
 
-                      </div>
 
-                      <div class="form-group">
+          // =====================================================
+          // RENDER QUIZ
+          // =====================================================
 
-                        <label>
-                          Image 4 URL
-                        </label>
+          function renderQuiz() {
 
-                        <input
-                          type="url"
-                          class="four-pics-image"
-                          data-index="3"
-                          placeholder="https://..."
-                        >
+            quizList.innerHTML =
+              "";
 
-                      </div>
+            questions.forEach(
+              (
+                question,
+                questionIndex
+              ) => {
+
+                const questionCard =
+                  document.createElement(
+                    "div"
+                  );
+
+                questionCard.className =
+                  "quiz-question-card";
+
+                questionCard.innerHTML = `
+
+                  <div class="editor-item-heading">
+
+                    <div>
+
+                      <span class="editor-label">
+                        QUESTION ${
+                          questionIndex + 1
+                        }
+                      </span>
+
+                      <h4>
+                        Quiz Question ${
+                          questionIndex + 1
+                        }
+                      </h4>
+
+                    </div>
+
+                  </div>
+
+                  <div class="form-group">
+
+                    <label>
+                      Question
+                    </label>
+
+                    <textarea
+                      class="quiz-question-input"
+                      rows="3"
+                      placeholder="Write the question here..."
+                    ></textarea>
+
+                  </div>
+
+                  <div class="quiz-choices-grid">
+
+                    <div class="form-group">
+
+                      <label>
+                        Choice A
+                      </label>
+
+                      <input
+                        type="text"
+                        class="quiz-choice"
+                        data-choice="0"
+                      >
 
                     </div>
 
                     <div class="form-group">
 
                       <label>
-                        Correct Answer
+                        Choice B
                       </label>
 
                       <input
                         type="text"
-                        class="four-pics-answer"
-                        placeholder="Example: JOURNALISM"
+                        class="quiz-choice"
+                        data-choice="1"
+                      >
+
+                    </div>
+
+                    <div class="form-group">
+
+                      <label>
+                        Choice C
+                      </label>
+
+                      <input
+                        type="text"
+                        class="quiz-choice"
+                        data-choice="2"
+                      >
+
+                    </div>
+
+                    <div class="form-group">
+
+                      <label>
+                        Choice D
+                      </label>
+
+                      <input
+                        type="text"
+                        class="quiz-choice"
+                        data-choice="3"
                       >
 
                     </div>
 
                   </div>
 
+                  <div class="form-group">
+
+                    <label>
+                      Correct Answer
+                    </label>
+
+                    <select
+                      class="quiz-correct-answer"
+                    >
+
+                      <option value="0">
+                        Choice A
+                      </option>
+
+                      <option value="1">
+                        Choice B
+                      </option>
+
+                      <option value="2">
+                        Choice C
+                      </option>
+
+                      <option value="3">
+                        Choice D
+                      </option>
+
+                    </select>
+
+                  </div>
+
                 `;
 
-                specificEditor
+
+                const questionInput =
+                  questionCard.querySelector(
+                    ".quiz-question-input"
+                  );
+
+                questionInput.value =
+                  question.text || "";
+
+                questionInput.addEventListener(
+                  "input",
+                  () => {
+
+                    question.text =
+                      questionInput.value;
+
+                  }
+                );
+
+
+                questionCard
                   .querySelectorAll(
-                    ".four-pics-image"
+                    ".quiz-choice"
                   )
                   .forEach(
                     input => {
 
                       const index =
                         Number(
-                          input.dataset.index
+                          input.dataset.choice
                         );
 
                       input.value =
-                        game.images[
+                        question.choices[
                           index
                         ] || "";
 
@@ -2792,7 +3482,7 @@
                         "input",
                         () => {
 
-                          game.images[
+                          question.choices[
                             index
                           ] =
                             input.value;
@@ -2803,1162 +3493,782 @@
                     }
                   );
 
-                const answer =
-                  specificEditor.querySelector(
-                    ".four-pics-answer"
+
+                const correctSelect =
+                  questionCard.querySelector(
+                    ".quiz-correct-answer"
                   );
 
-                answer.value =
-                  game.answer || "";
+                correctSelect.value =
+                  String(
+                    question.correct
+                  );
 
-                answer.addEventListener(
-                  "input",
+                correctSelect.addEventListener(
+                  "change",
                   () => {
 
-                    game.answer =
-                      answer.value;
+                    question.correct =
+                      Number(
+                        correctSelect.value
+                      );
 
                   }
                 );
 
+
+                quizList.appendChild(
+                  questionCard
+                );
+
               }
+            );
+
+          }
 
 
-              // =============================================
-              // CROSSWORD
-              // =============================================
+          // =====================================================
+          // SAVE EVERYTHING
+          // =====================================================
 
-              if (
-                game.type ===
-                "crossword"
-              ) {
+          articleCard
+            .querySelector(
+              ".save-article-btn"
+            )
+            .addEventListener(
+              "click",
+              async () => {
 
-                if (
-                  !game.size
-                ) {
-                  game.size = 8;
-                }
+                try {
 
-                if (
-                  !Array.isArray(
-                    game.words
-                  )
-                ) {
-                  game.words = [];
-                }
-
-                specificEditor.innerHTML = `
-
-                  <div class="game-specific-box">
-
-                    <h4>
-                      Crossword Settings
-                    </h4>
-
-                    <p class="small">
-                      Create the crossword by adding
-                      words, clues, starting positions,
-                      and directions.
-                    </p>
-
-                    <div class="form-group">
-
-                      <label>
-                        Grid Size
-                      </label>
-
-                      <input
-                        type="number"
-                        class="crossword-size"
-                        min="3"
-                        max="20"
-                        value="${escapeAttr(
-                          game.size
-                        )}"
-                      >
-
-                      <small class="small">
-                        Recommended: 8 × 8
-                      </small>
-
+                  saveStatus.innerHTML = `
+                    <div class="notice">
+                      Saving article, games, and quiz...
                     </div>
+                  `;
 
-                    <div class="crossword-words">
 
-                    </div>
+                  // =========================================
+                  // ARTICLE TITLE
+                  // =========================================
 
-                    <button
-                      type="button"
-                      class="secondary-btn add-crossword-word-btn"
-                    >
-                      ＋ Add Crossword Word
-                    </button>
+                  const cleanedTitle =
+                    articleTitleInput.value.trim();
 
-                  </div>
+                  if (!cleanedTitle) {
 
-                `;
-
-                const sizeInput =
-                  specificEditor.querySelector(
-                    ".crossword-size"
-                  );
-
-                sizeInput.addEventListener(
-                  "input",
-                  () => {
-
-                    let value =
-                      Number(
-                        sizeInput.value
-                      );
-
-                    if (
-                      !Number.isFinite(
-                        value
-                      )
-                    ) {
-                      value = 8;
-                    }
-
-                    value =
-                      Math.max(
-                        3,
-                        Math.min(
-                          20,
-                          value
-                        )
-                      );
-
-                    game.size =
-                      value;
+                    throw new Error(
+                      "Please enter an article title."
+                    );
 
                   }
-                );
 
-                const wordsContainer =
-                  specificEditor.querySelector(
-                    ".crossword-words"
-                  );
 
-                renderCrosswordWords(
-                  game,
-                  wordsContainer
-                );
+                  // =========================================
+                  // ARTICLE IMAGE
+                  // =========================================
 
-                specificEditor
-                  .querySelector(
-                    ".add-crossword-word-btn"
-                  )
-                  .addEventListener(
-                    "click",
-                    () => {
+                  const cleanedImage =
+                    articleImageInput.value.trim();
 
-                      game.words.push({
+                  if (!cleanedImage) {
 
-                        answer:
-                          "",
+                    throw new Error(
+                      "Please enter an article image URL."
+                    );
 
-                        clue:
-                          "",
+                  }
 
-                        row:
-                          1,
 
-                        column:
-                          1,
+                  // =========================================
+                  // CLEAN PAGES
+                  // =========================================
 
-                        direction:
-                          "across"
-
-                      });
-
-                      renderGames();
-
-                    }
-                  );
-
-              }
-
-              gameList.appendChild(
-                gameCard
-              );
-
-            }
-          );
-
-        }
-
-
-        // =====================================================
-        // ADD PAGE
-        // =====================================================
-
-        articleCard
-          .querySelector(
-            ".article-add-page-btn"
-          )
-          .addEventListener(
-            "click",
-            () => {
-
-              pages.push({
-
-                pageNumber:
-                  pages.length + 1,
-
-                paragraphs: []
-
-              });
-
-              renderPages();
-
-              renderGames();
-
-            }
-          );
-
-
-        // =====================================================
-        // ADD GAME
-        // =====================================================
-
-        articleCard
-          .querySelector(
-            ".add-game-btn"
-          )
-          .addEventListener(
-            "click",
-            () => {
-
-              games.push({
-
-                type:
-                  "jumbled",
-
-                afterPage:
-                  1,
-
-                answer:
-                  "",
-
-                scrambled:
-                  ""
-
-              });
-
-              renderGames();
-
-            }
-          );
-
-
-        // =====================================================
-        // RENDER QUIZ
-        // =====================================================
-
-        function renderQuiz() {
-
-          quizList.innerHTML =
-            "";
-
-          questions.forEach(
-            (
-              question,
-              questionIndex
-            ) => {
-
-              const questionCard =
-                document.createElement(
-                  "div"
-                );
-
-              questionCard.className =
-                "quiz-question-card";
-
-              questionCard.innerHTML = `
-
-                <div class="editor-item-heading">
-
-                  <div>
-
-                    <span class="editor-label">
-                      QUESTION ${
-                        questionIndex + 1
-                      }
-                    </span>
-
-                    <h4>
-                      Quiz Question ${
-                        questionIndex + 1
-                      }
-                    </h4>
-
-                  </div>
-
-                </div>
-
-                <div class="form-group">
-
-                  <label>
-                    Question
-                  </label>
-
-                  <textarea
-                    class="quiz-question-input"
-                    rows="3"
-                    placeholder="Write the question here..."
-                  ></textarea>
-
-                </div>
-
-                <div class="quiz-choices-grid">
-
-                  <div class="form-group">
-
-                    <label>
-                      Choice A
-                    </label>
-
-                    <input
-                      type="text"
-                      class="quiz-choice"
-                      data-choice="0"
-                    >
-
-                  </div>
-
-                  <div class="form-group">
-
-                    <label>
-                      Choice B
-                    </label>
-
-                    <input
-                      type="text"
-                      class="quiz-choice"
-                      data-choice="1"
-                    >
-
-                  </div>
-
-                  <div class="form-group">
-
-                    <label>
-                      Choice C
-                    </label>
-
-                    <input
-                      type="text"
-                      class="quiz-choice"
-                      data-choice="2"
-                    >
-
-                  </div>
-
-                  <div class="form-group">
-
-                    <label>
-                      Choice D
-                    </label>
-
-                    <input
-                      type="text"
-                      class="quiz-choice"
-                      data-choice="3"
-                    >
-
-                  </div>
-
-                </div>
-
-                <div class="form-group">
-
-                  <label>
-                    Correct Answer
-                  </label>
-
-                  <select
-                    class="quiz-correct-answer"
-                  >
-
-                    <option value="0">
-                      Choice A
-                    </option>
-
-                    <option value="1">
-                      Choice B
-                    </option>
-
-                    <option value="2">
-                      Choice C
-                    </option>
-
-                    <option value="3">
-                      Choice D
-                    </option>
-
-                  </select>
-
-                </div>
-
-              `;
-
-
-              const questionInput =
-                questionCard.querySelector(
-                  ".quiz-question-input"
-                );
-
-              questionInput.value =
-                question.text || "";
-
-              questionInput.addEventListener(
-                "input",
-                () => {
-
-                  question.text =
-                    questionInput.value;
-
-                }
-              );
-
-
-              questionCard
-                .querySelectorAll(
-                  ".quiz-choice"
-                )
-                .forEach(
-                  input => {
-
-                    const index =
-                      Number(
-                        input.dataset.choice
-                      );
-
-                    input.value =
-                      question.choices[
+                  const cleanedPages =
+                    pages.map(
+                      (
+                        page,
                         index
-                      ] || "";
+                      ) => ({
 
-                    input.addEventListener(
-                      "input",
-                      () => {
+                        pageNumber:
+                          index + 1,
 
-                        question.choices[
-                          index
-                        ] =
-                          input.value;
+                        paragraphs:
+                          page.paragraphs
+                            .map(
+                              paragraph =>
+                                String(
+                                  paragraph ?? ""
+                                ).trim()
+                            )
 
-                      }
+                      })
+                    );
+
+
+                  // =========================================
+                  // VALIDATE PAGE COUNT
+                  // =========================================
+
+                  if (
+                    cleanedPages.length <
+                    2
+                  ) {
+
+                    throw new Error(
+                      "An article must have at least 2 pages."
                     );
 
                   }
-                );
 
 
-              const correctSelect =
-                questionCard.querySelector(
-                  ".quiz-correct-answer"
-                );
+                  // =========================================
+                  // VALIDATE PARAGRAPH LIMIT
+                  // =========================================
 
-              correctSelect.value =
-                String(
-                  question.correct
-                );
-
-              correctSelect.addEventListener(
-                "change",
-                () => {
-
-                  question.correct =
-                    Number(
-                      correctSelect.value
+                  const invalidPage =
+                    cleanedPages.find(
+                      page =>
+                        page.paragraphs.length >
+                        5
                     );
 
-                }
-              );
+                  if (
+                    invalidPage
+                  ) {
+
+                    throw new Error(
+                      `Page ${invalidPage.pageNumber} has more than 5 paragraphs.`
+                    );
+
+                  }
 
 
-              quizList.appendChild(
-                questionCard
-              );
+                  // =========================================
+                  // VALIDATE ARTICLE CONTENT
+                  // =========================================
 
-            }
-          );
+                  const totalParagraphs =
+                    cleanedPages.reduce(
+                      (
+                        total,
+                        page
+                      ) =>
+                        total +
+                        page.paragraphs.filter(
+                          paragraph =>
+                            paragraph.length >
+                            0
+                        ).length,
+                      0
+                    );
 
-        }
-
-
-        // =====================================================
-        // SAVE EVERYTHING
-        // =====================================================
-
-        articleCard
-          .querySelector(
-            ".save-article-btn"
-          )
-          .addEventListener(
-            "click",
-            async () => {
-
-              try {
-
-                saveStatus.innerHTML = `
-                  <div class="notice">
-                    Saving article, games, and quiz...
-                  </div>
-                `;
-
-
-                // =========================================
-                // CLEAN PAGES
-                // =========================================
-
-                const cleanedPages =
-                  pages.map(
-                    (
-                      page,
-                      index
-                    ) => ({
-
-                      pageNumber:
-                        index + 1,
-
-                      paragraphs:
-                        page.paragraphs
-                          .map(
-                            paragraph =>
-                              String(
-                                paragraph ?? ""
-                              ).trim()
-                          )
-
-                    })
-                  );
-
-
-                // =========================================
-                // VALIDATE ARTICLE
-                // =========================================
-
-                const totalParagraphs =
-                  cleanedPages.reduce(
-                    (
-                      total,
-                      page
-                    ) =>
-                      total +
-                      page.paragraphs.filter(
-                        paragraph =>
-                          paragraph.length >
-                          0
-                      ).length,
+                  if (
+                    totalParagraphs ===
                     0
-                  );
+                  ) {
 
-                if (
-                  totalParagraphs ===
-                  0
-                ) {
-
-                  saveStatus.innerHTML =
-                    errorBox(
+                    throw new Error(
                       "Please add at least one paragraph before saving."
                     );
 
-                  return;
-                }
+                  }
 
 
-                // =========================================
-                // CLEAN GAMES
-                // =========================================
+                  // =========================================
+                  // CLEAN GAMES
+                  // =========================================
 
-                const cleanedGames =
-                  games.map(
-                    game => {
+                  const cleanedGames =
+                    games.map(
+                      game => {
 
-                      const afterPage =
-                        Math.max(
-                          1,
-                          Math.min(
-                            pages.length,
-                            Number(
-                              game.afterPage ||
-                              1
-                            )
-                          )
-                        );
-
-
-                      // -------------------------------
-                      // JUMBLED
-                      // -------------------------------
-
-                      if (
-                        game.type ===
-                        "jumbled"
-                      ) {
-
-                        const answer =
-                          String(
-                            game.answer ||
-                            ""
-                          ).trim();
-
-                        const scrambled =
-                          String(
-                            game.scrambled ||
-                            ""
-                          ).trim();
-
-                        if (
-                          !answer
-                        ) {
-
-                          throw new Error(
-                            `Game ${
-                              games.indexOf(
-                                game
-                              ) + 1
-                            }: Jumbled Words needs a correct answer.`
-                          );
-
-                        }
-
-                        if (
-                          !scrambled
-                        ) {
-
-                          throw new Error(
-                            `Game ${
-                              games.indexOf(
-                                game
-                              ) + 1
-                            }: Jumbled Words needs scrambled letters.`
-                          );
-
-                        }
-
-                        return {
-
-                          type:
-                            "jumbled",
-
-                          afterPage,
-
-                          answer,
-
-                          scrambled
-
-                        };
-
-                      }
-
-
-                      // -------------------------------
-                      // 4 PICS
-                      // -------------------------------
-
-                      if (
-                        game.type ===
-                        "fourPics"
-                      ) {
-
-                        const images =
-                          Array.isArray(
-                            game.images
-                          )
-                            ? game.images
-                                .slice(
-                                  0,
-                                  4
-                                )
-                                .map(
-                                  image =>
-                                    String(
-                                      image ||
-                                      ""
-                                    ).trim()
-                                )
-                            : [];
-
-                        while (
-                          images.length <
-                          4
-                        ) {
-                          images.push("");
-                        }
-
-                        if (
-                          images.some(
-                            image =>
-                              !image
-                          )
-                        ) {
-
-                          throw new Error(
-                            `Game ${
-                              games.indexOf(
-                                game
-                              ) + 1
-                            }: 4 Pics 1 Word needs four image URLs.`
-                          );
-
-                        }
-
-                        const answer =
-                          String(
-                            game.answer ||
-                            ""
-                          ).trim();
-
-                        if (
-                          !answer
-                        ) {
-
-                          throw new Error(
-                            `Game ${
-                              games.indexOf(
-                                game
-                              ) + 1
-                            }: 4 Pics 1 Word needs a correct answer.`
-                          );
-
-                        }
-
-                        return {
-
-                          type:
-                            "fourPics",
-
-                          afterPage,
-
-                          images,
-
-                          answer
-
-                        };
-
-                      }
-
-
-                      // -------------------------------
-                      // CROSSWORD
-                      // -------------------------------
-
-                      if (
-                        game.type ===
-                        "crossword"
-                      ) {
-
-                        const size =
+                        const afterPage =
                           Math.max(
-                            3,
+                            1,
                             Math.min(
-                              20,
+                              pages.length,
                               Number(
-                                game.size ||
-                                8
+                                game.afterPage ||
+                                1
                               )
                             )
                           );
 
+
+                        // -------------------------------
+                        // JUMBLED
+                        // -------------------------------
+
                         if (
-                          !Array.isArray(
-                            game.words
-                          ) ||
-                          game.words.length ===
-                          0
+                          game.type ===
+                          "jumbled"
+                        ) {
+
+                          const answer =
+                            String(
+                              game.answer ||
+                              ""
+                            ).trim();
+
+                          const scrambled =
+                            String(
+                              game.scrambled ||
+                              ""
+                            ).trim();
+
+                          if (
+                            !answer
+                          ) {
+
+                            throw new Error(
+                              `Game ${
+                                games.indexOf(
+                                  game
+                                ) + 1
+                              }: Jumbled Words needs a correct answer.`
+                            );
+
+                          }
+
+                          if (
+                            !scrambled
+                          ) {
+
+                            throw new Error(
+                              `Game ${
+                                games.indexOf(
+                                  game
+                                ) + 1
+                              }: Jumbled Words needs scrambled letters.`
+                            );
+
+                          }
+
+                          return {
+
+                            type:
+                              "jumbled",
+
+                            afterPage,
+
+                            answer,
+
+                            scrambled
+
+                          };
+
+                        }
+
+
+                        // -------------------------------
+                        // 4 PICS 1 WORD
+                        // -------------------------------
+
+                        if (
+                          game.type ===
+                          "fourPics"
+                        ) {
+
+                          const images =
+                            Array.isArray(
+                              game.images
+                            )
+                              ? game.images
+                                  .slice(
+                                    0,
+                                    4
+                                  )
+                                  .map(
+                                    image =>
+                                      String(
+                                        image ||
+                                        ""
+                                      ).trim()
+                                  )
+                              : [];
+
+                          while (
+                            images.length <
+                            4
+                          ) {
+                            images.push("");
+                          }
+
+                          if (
+                            images.some(
+                              image =>
+                                !image
+                            )
+                          ) {
+
+                            throw new Error(
+                              `Game ${
+                                games.indexOf(
+                                  game
+                                ) + 1
+                              }: 4 Pics 1 Word needs four image URLs.`
+                            );
+
+                          }
+
+                          const answer =
+                            String(
+                              game.answer ||
+                              ""
+                            ).trim();
+
+                          if (
+                            !answer
+                          ) {
+
+                            throw new Error(
+                              `Game ${
+                                games.indexOf(
+                                  game
+                                ) + 1
+                              }: 4 Pics 1 Word needs a correct answer.`
+                            );
+
+                          }
+
+                          return {
+
+                            type:
+                              "fourPics",
+
+                            afterPage,
+
+                            images,
+
+                            answer
+
+                          };
+
+                        }
+
+
+                        // -------------------------------
+                        // CROSSWORD
+                        // -------------------------------
+
+                        if (
+                          game.type ===
+                          "crossword"
+                        ) {
+
+                          const size =
+                            Math.max(
+                              3,
+                              Math.min(
+                                20,
+                                Number(
+                                  game.size ||
+                                  8
+                                )
+                              )
+                            );
+
+                          if (
+                            !Array.isArray(
+                              game.words
+                            ) ||
+                            game.words.length ===
+                            0
+                          ) {
+
+                            throw new Error(
+                              `Game ${
+                                games.indexOf(
+                                  game
+                                ) + 1
+                              }: Crossword needs at least one word.`
+                            );
+
+                          }
+
+                          const words =
+                            game.words.map(
+                              word => {
+
+                                const answer =
+                                  String(
+                                    word.answer ||
+                                    ""
+                                  )
+                                    .trim()
+                                    .toUpperCase();
+
+                                const clue =
+                                  String(
+                                    word.clue ||
+                                    ""
+                                  ).trim();
+
+                                const row =
+                                  Number(
+                                    word.row ||
+                                    1
+                                  );
+
+                                const column =
+                                  Number(
+                                    word.column ||
+                                    1
+                                  );
+
+                                const direction =
+                                  word.direction ===
+                                  "down"
+                                    ? "down"
+                                    : "across";
+
+
+                                if (
+                                  !answer
+                                ) {
+
+                                  throw new Error(
+                                    "Every Crossword word needs an answer."
+                                  );
+
+                                }
+
+                                if (
+                                  !clue
+                                ) {
+
+                                  throw new Error(
+                                    `Crossword word "${answer}" needs a clue.`
+                                  );
+
+                                }
+
+
+                                if (
+                                  !Number.isFinite(
+                                    row
+                                  ) ||
+                                  !Number.isFinite(
+                                    column
+                                  ) ||
+                                  row < 1 ||
+                                  column < 1
+                                ) {
+
+                                  throw new Error(
+                                    `Crossword word "${answer}" has an invalid starting position.`
+                                  );
+
+                                }
+
+
+                                if (
+                                  direction ===
+                                  "across"
+                                ) {
+
+                                  if (
+                                    column +
+                                      answer.length -
+                                      1 >
+                                    size
+                                  ) {
+
+                                    throw new Error(
+                                      `Crossword word "${answer}" does not fit across the ${size}×${size} grid.`
+                                    );
+
+                                  }
+
+                                } else {
+
+                                  if (
+                                    row +
+                                      answer.length -
+                                      1 >
+                                    size
+                                  ) {
+
+                                    throw new Error(
+                                      `Crossword word "${answer}" does not fit down the ${size}×${size} grid.`
+                                    );
+
+                                  }
+
+                                }
+
+
+                                return {
+
+                                  answer,
+
+                                  clue,
+
+                                  row,
+
+                                  column,
+
+                                  direction
+
+                                };
+
+                              }
+                            );
+
+
+                          return {
+
+                            type:
+                              "crossword",
+
+                            afterPage,
+
+                            size,
+
+                            words
+
+                          };
+
+                        }
+
+
+                        throw new Error(
+                          "Unknown game type."
+                        );
+
+                      }
+                    );
+
+
+                  // =========================================
+                  // CLEAN QUIZ
+                  // =========================================
+
+                  const cleanedQuestions =
+                    questions.map(
+                      (
+                        question,
+                        questionIndex
+                      ) => {
+
+                        const text =
+                          String(
+                            question.text ||
+                            ""
+                          ).trim();
+
+                        const choices =
+                          question.choices
+                            .map(
+                              choice =>
+                                String(
+                                  choice ||
+                                  ""
+                                ).trim()
+                            );
+
+
+                        if (
+                          !text
                         ) {
 
                           throw new Error(
-                            `Game ${
-                              games.indexOf(
-                                game
-                              ) + 1
-                            }: Crossword needs at least one word.`
+                            `Quiz Question ${
+                              questionIndex + 1
+                            } needs a question.`
                           );
 
                         }
 
-                        const words =
-                          game.words.map(
-                            word => {
 
-                              const answer =
-                                String(
-                                  word.answer ||
-                                  ""
-                                )
-                                  .trim()
-                                  .toUpperCase();
+                        if (
+                          choices.length !==
+                          4 ||
+                          choices.some(
+                            choice =>
+                              !choice
+                          )
+                        ) {
 
-                              const clue =
-                                String(
-                                  word.clue ||
-                                  ""
-                                ).trim();
-
-                              const row =
-                                Number(
-                                  word.row ||
-                                  1
-                                );
-
-                              const column =
-                                Number(
-                                  word.column ||
-                                  1
-                                );
-
-                              const direction =
-                                word.direction ===
-                                "down"
-                                  ? "down"
-                                  : "across";
-
-
-                              if (
-                                !answer
-                              ) {
-
-                                throw new Error(
-                                  "Every Crossword word needs an answer."
-                                );
-
-                              }
-
-                              if (
-                                !clue
-                              ) {
-
-                                throw new Error(
-                                  `Crossword word "${answer}" needs a clue.`
-                                );
-
-                              }
-
-
-                              if (
-                                !Number.isFinite(
-                                  row
-                                ) ||
-                                !Number.isFinite(
-                                  column
-                                ) ||
-                                row < 1 ||
-                                column < 1
-                              ) {
-
-                                throw new Error(
-                                  `Crossword word "${answer}" has an invalid starting position.`
-                                );
-
-                              }
-
-
-                              // Make sure the word
-                              // fits inside the grid.
-                              if (
-                                direction ===
-                                "across"
-                              ) {
-
-                                if (
-                                  column +
-                                    answer.length -
-                                    1 >
-                                  size
-                                ) {
-
-                                  throw new Error(
-                                    `Crossword word "${answer}" does not fit across the ${size}×${size} grid.`
-                                  );
-
-                                }
-
-                              } else {
-
-                                if (
-                                  row +
-                                    answer.length -
-                                    1 >
-                                  size
-                                ) {
-
-                                  throw new Error(
-                                    `Crossword word "${answer}" does not fit down the ${size}×${size} grid.`
-                                  );
-
-                                }
-
-                              }
-
-
-                              return {
-
-                                answer,
-
-                                clue,
-
-                                row,
-
-                                column,
-
-                                direction
-
-                              };
-
-                            }
+                          throw new Error(
+                            `Quiz Question ${
+                              questionIndex + 1
+                            } must have four choices.`
                           );
+
+                        }
+
+
+                        const correct =
+                          Number(
+                            question.correct
+                          );
+
+
+                        if (
+                          ![
+                            0,
+                            1,
+                            2,
+                            3
+                          ].includes(
+                            correct
+                          )
+                        ) {
+
+                          throw new Error(
+                            `Quiz Question ${
+                              questionIndex + 1
+                            } has an invalid correct answer.`
+                          );
+
+                        }
 
 
                         return {
 
-                          type:
-                            "crossword",
+                          text,
 
-                          afterPage,
+                          choices,
 
-                          size,
-
-                          words
+                          correct
 
                         };
 
                       }
+                    );
 
 
-                      throw new Error(
-                        "Unknown game type."
-                      );
+                  // =========================================
+                  // FLATTEN ARTICLE
+                  // =========================================
+
+                  const flattenedParagraphs =
+                    cleanedPages.flatMap(
+                      page =>
+                        page.paragraphs.filter(
+                          paragraph =>
+                            paragraph.length >
+                            0
+                        )
+                    );
+
+
+                  // =========================================
+                  // FIRESTORE SAVE
+                  // =========================================
+
+                  await updateDoc(
+                    doc(
+                      db,
+                      "articles",
+                      article.id
+                    ),
+                    {
+
+                      title:
+                        cleanedTitle,
+
+                      image:
+                        cleanedImage,
+
+                      pages:
+                        cleanedPages,
+
+                      paragraphs:
+                        flattenedParagraphs,
+
+                      body:
+                        flattenedParagraphs.join(
+                          "\n\n"
+                        ),
+
+                      games:
+                        cleanedGames,
+
+                      questions:
+                        cleanedQuestions,
+
+                      updatedAt:
+                        serverTimestamp()
 
                     }
                   );
 
 
-                // =========================================
-                // CLEAN QUIZ
-                // =========================================
+                  // =========================================
+                  // SUCCESS
+                  // =========================================
 
-                const cleanedQuestions =
-                  questions.map(
-                    (
-                      question,
-                      questionIndex
-                    ) => {
+                  saveStatus.innerHTML = `
+                    <div class="save-success">
+                      ✓ Article, image, games, and quiz saved successfully.
+                    </div>
+                  `;
 
-                      const text =
-                        String(
-                          question.text ||
-                          ""
-                        ).trim();
+                  setTimeout(
+                    () => {
 
-                      const choices =
-                        question.choices
-                          .map(
-                            choice =>
-                              String(
-                                choice ||
-                                ""
-                              ).trim()
-                          );
+                      saveStatus.innerHTML =
+                        "";
 
-
-                      if (
-                        !text
-                      ) {
-
-                        throw new Error(
-                          `Quiz Question ${
-                            questionIndex + 1
-                          } needs a question.`
-                        );
-
-                      }
-
-
-                      if (
-                        choices.length !==
-                        4 ||
-                        choices.some(
-                          choice =>
-                            !choice
-                        )
-                      ) {
-
-                        throw new Error(
-                          `Quiz Question ${
-                            questionIndex + 1
-                          } must have four choices.`
-                        );
-
-                      }
-
-
-                      const correct =
-                        Number(
-                          question.correct
-                        );
-
-
-                      if (
-                        ![
-                          0,
-                          1,
-                          2,
-                          3
-                        ].includes(
-                          correct
-                        )
-                      ) {
-
-                        throw new Error(
-                          `Quiz Question ${
-                            questionIndex + 1
-                          } has an invalid correct answer.`
-                        );
-
-                      }
-
-
-                      return {
-
-                        text,
-
-                        choices,
-
-                        correct
-
-                      };
-
-                    }
+                    },
+                    4000
                   );
 
+                } catch (error) {
 
-                // =========================================
-                // FLATTEN ARTICLE
-                // =========================================
-
-                const flattenedParagraphs =
-                  cleanedPages.flatMap(
-                    page =>
-                      page.paragraphs.filter(
-                        paragraph =>
-                          paragraph.length >
-                          0
-                      )
+                  console.error(
+                    "Failed to save article:",
+                    error
                   );
 
+                  saveStatus.innerHTML =
+                    errorBox(
+                      error.message ||
+                      "Failed to save article. Please try again."
+                    );
 
-                // =========================================
-                // FIRESTORE SAVE
-                // =========================================
-
-                await updateDoc(
-                  doc(
-                    db,
-                    "articles",
-                    article.id
-                  ),
-                  {
-
-                    pages:
-                      cleanedPages,
-
-                    paragraphs:
-                      flattenedParagraphs,
-
-                    body:
-                      flattenedParagraphs.join(
-                        "\n\n"
-                      ),
-
-                    games:
-                      cleanedGames,
-
-                    questions:
-                      cleanedQuestions,
-
-                    updatedAt:
-                      serverTimestamp()
-
-                  }
-                );
-
-
-                // =========================================
-                // SUCCESS
-                // =========================================
-
-                saveStatus.innerHTML = `
-                  <div class="save-success">
-                    ✓ Article, games, and quiz saved successfully.
-                  </div>
-                `;
-
-                setTimeout(
-                  () => {
-
-                    saveStatus.innerHTML =
-                      "";
-
-                  },
-                  4000
-                );
-
-              } catch (error) {
-
-                console.error(
-                  "Failed to save article:",
-                  error
-                );
-
-                saveStatus.innerHTML =
-                  errorBox(
-                    error.message ||
-                    "Failed to save article. Please try again."
-                  );
+                }
 
               }
+            );
 
-            }
+
+          // =====================================================
+          // INITIAL RENDER
+          // =====================================================
+
+          articleList.appendChild(
+            articleCard
           );
 
+          renderPages();
+          renderGames();
+          renderQuiz();
 
-        // =====================================================
-        // INITIAL RENDER
-        // =====================================================
+        }
+      );
 
-        articleList.appendChild(
-          articleCard
-        );
+    } catch (error) {
 
-        renderPages();
-        renderGames();
-        renderQuiz();
+      console.error(
+        "Article / Game / Quiz Editor error:",
+        error
+      );
 
-      }
-    );
+      articleList.innerHTML = `
+        <div class="error">
+          Unable to load the articles.
+          Please check your Firestore connection.
+        </div>
+      `;
 
-  } catch (error) {
-
-    console.error(
-      "Article / Game / Quiz Editor error:",
-      error
-    );
-
-    articleList.innerHTML = `
-      <div class="error">
-        Unable to load the articles.
-        Please check your Firestore connection.
-      </div>
-    `;
+    }
 
   }
-
-}
 
   // =========================================================
   // CODE MANAGER
@@ -4088,6 +4398,7 @@
       );
 
     await drawCodeTable();
+
   }
 
   async function addCode(event) {
@@ -4197,6 +4508,7 @@
         );
 
     }
+
   }
 
   async function drawCodeTable() {
@@ -4305,6 +4617,7 @@
       `;
 
     }
+
   }
 
   // =========================================================
@@ -4516,6 +4829,7 @@
       `;
 
     }
+
   }
 
   // =========================================================
@@ -4556,6 +4870,7 @@
         "click",
         exportCSV
       );
+
   }
 
   async function exportCSV() {
@@ -4681,6 +4996,7 @@
       );
 
     }
+
   }
 
   // =========================================================
