@@ -1578,7 +1578,7 @@ function renderArticleWithGames(article) {
             ) {
 
               showConfetti();
-             playSound("sounds/correct.mp3");
+             playSound("correct.mp3");
 
               message.innerHTML =
                 setMessage(
