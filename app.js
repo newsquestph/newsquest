@@ -1657,16 +1657,15 @@ function renderArticleWithGames(article) {
               }
 
             }
-else {
 
-  playSound("wrong.mp3");
+            else {
 
-  message.innerHTML =
-    setMessage(
-      "Not quite. Try again."
-    );
+              message.innerHTML =
+                setMessage(
+                  "Not quite. Try again."
+                );
 
-}
+            }
 
           }
         );
@@ -1692,8 +1691,6 @@ else {
     quizButton.addEventListener(
       "click",
       () => {
-
-        playSound("proceed.mp3");
 
         renderQuiz(
           article
