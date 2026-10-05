@@ -503,25 +503,58 @@ function renderArticleWithGames(article) {
     ---------------------------------------------------------
   */
 
-  const gameMap = {};
+const gameMap = {};
 
-  games.forEach(game => {
+games.forEach(game => {
 
-    const position =
-      Number(game.position);
+  let position = null;
 
-    if (
-      Number.isInteger(position) &&
-      position >= 1 &&
-      position <= totalParagraphs
-    ) {
+  Object.keys(game).forEach(key => {
 
-      gameMap[position] = game;
+    if (key.startsWith("afterPage")) {
+
+      const pageNumber =
+        Number(
+          key.replace(
+            "afterPage",
+            ""
+          )
+        );
+
+      if (
+        Number.isInteger(pageNumber) &&
+        game[key] === 1
+      ) {
+        position = pageNumber;
+      }
 
     }
 
   });
 
+  // Keep compatibility with the old position format
+  if (position === null) {
+
+    const oldPosition =
+      Number(game.position);
+
+    if (
+      Number.isInteger(oldPosition)
+    ) {
+      position = oldPosition;
+    }
+
+  }
+
+  if (
+    Number.isInteger(position) &&
+    position >= 1 &&
+    position <= totalParagraphs
+  ) {
+    gameMap[position] = game;
+  }
+
+});
 
   /*
     ---------------------------------------------------------
@@ -1657,15 +1690,16 @@ function renderArticleWithGames(article) {
               }
 
             }
+else {
 
-            else {
+  playSound("wrong.mp3");
 
-              message.innerHTML =
-                setMessage(
-                  "Not quite. Try again."
-                );
+  message.innerHTML =
+    setMessage(
+      "Not quite. Try again."
+    );
 
-            }
+}
 
           }
         );
@@ -1691,6 +1725,8 @@ function renderArticleWithGames(article) {
     quizButton.addEventListener(
       "click",
       () => {
+
+        playSound("proceed.mp3");
 
         renderQuiz(
           article
