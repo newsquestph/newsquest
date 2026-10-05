@@ -775,24 +775,35 @@
       to the final page.
     */
 
-    if (
-      currentParagraphs.length > 0
-    ) {
+  if (
+  currentParagraphs.length > 0
+) {
 
-      pages.push({
+  pages.push({
 
-        paragraphs:
-          currentParagraphs,
+    paragraphs:
+      currentParagraphs,
 
-        game:
-          null,
+    game:
+      null,
 
-        gamePosition:
-          null
+    gamePosition:
+      null
 
-      });
+  });
 
-    }
+}
+
+
+/* DEBUG */
+
+console.log("========== PAGE DEBUG ==========");
+console.log("TOTAL PARAGRAPHS:", totalParagraphs);
+console.log("GAMES:", games);
+console.log("GAME MAP:", gameMap);
+console.log("PAGES CREATED:", pages.length);
+console.log("PAGES DATA:", pages);
+console.log("===============================");
 
 
     /*
