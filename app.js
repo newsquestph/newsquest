@@ -504,35 +504,44 @@
      ARTICLE ROUTER
   ========================================================= */
 
-  function renderArticle(article) {
+ function renderArticle(article) {
 
-    const session =
-      getSession();
+  console.log("========== NEWSQUEST ARTICLE DEBUG ==========");
+  console.log("FULL ARTICLE:", article);
+  console.log("paragraphs:", article.paragraphs);
+  console.log("paragraphs is array:", Array.isArray(article.paragraphs));
+  console.log("paragraphs length:", article.paragraphs?.length);
+  console.log("games:", article.games);
+  console.log("games is array:", Array.isArray(article.games));
+  console.log("games length:", article.games?.length);
+  console.log("questions:", article.questions);
+  console.log("============================================");
 
+  const session = getSession();
 
-    if (
-      Array.isArray(
-        article.paragraphs
-      ) &&
-      article.paragraphs.length > 0
-    ) {
+  if (
+    Array.isArray(article.paragraphs) &&
+    article.paragraphs.length > 0
+  ) {
 
-      renderArticleWithGames(
-        article
-      );
-
-      return;
-
-    }
-
-
-    renderOldArticle(
-      article,
-      session
+    console.log(
+      "NEWSQUEST: Using NEW article renderer"
     );
 
+    renderArticleWithGames(article);
+
+    return;
   }
 
+  console.log(
+    "NEWSQUEST: Using OLD article renderer"
+  );
+
+  renderOldArticle(
+    article,
+    session
+  );
+}
 
   /* =========================================================
      NEW ARTICLE FORMAT
