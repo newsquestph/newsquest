@@ -9,6 +9,7 @@
     )
   ]);
 
+
   const {
     getFirestore,
     doc,
@@ -37,8 +38,10 @@
     measurementId: "G-KYXXZ5BEPK"
   };
 
+
   const app =
     initializeApp(firebaseConfig);
+
 
   const db =
     getFirestore(app);
@@ -74,37 +77,50 @@
   }
 
 
-function escapeAttr(value) {
+  function escapeAttr(value) {
 
-  return escapeHTML(value);
+    return escapeHTML(value);
 
-}
-
-
-function playSound(file) {
-  const audio = new Audio(file);
-
-  audio.volume = 1.0;
-
-  audio.play()
-    .then(() => {
-      console.log("Sound played:", file);
-    })
-    .catch(error => {
-      console.log("Sound blocked:", error);
-    });
-}
+  }
 
 
-function getSession() {
+  function playSound(file) {
 
-  return JSON.parse(
-    sessionStorage.getItem(
-      "newsquest_session"
-    ) || "null"
-  );
+    const audio =
+      new Audio(file);
 
-}
+    audio.volume = 1.0;
+
+    audio.play()
+      .then(() => {
+
+        console.log(
+          "Sound played:",
+          file
+        );
+
+      })
+      .catch(error => {
+
+        console.log(
+          "Sound blocked:",
+          error
+        );
+
+      });
+
+  }
+
+
+  function getSession() {
+
+    return JSON.parse(
+      sessionStorage.getItem(
+        "newsquest_session"
+      ) || "null"
+    );
+
+  }
 
 
   function saveSession(session) {
@@ -132,6 +148,7 @@ function getSession() {
         )
       );
 
+
     if (!snapshot.exists()) {
 
       throw new Error(
@@ -140,50 +157,96 @@ function getSession() {
 
     }
 
+
     return {
       articleId: snapshot.id,
       ...snapshot.data()
     };
 
   }
-function showConfetti() {
-  const container = document.createElement("div");
 
-  container.className = "confetti-container";
 
-  const pieces = 45;
+  /* =========================================================
+     CONFETTI
+  ========================================================= */
 
-  for (let i = 0; i < pieces; i++) {
-    const piece = document.createElement("span");
+  function showConfetti() {
 
-    piece.className = "confetti-piece";
+    const container =
+      document.createElement(
+        "div"
+      );
 
-    piece.style.left = Math.random() * 100 + "%";
 
-    piece.style.animationDelay =
-      Math.random() * 0.25 + "s";
+    container.className =
+      "confetti-container";
 
-    piece.style.transform =
-      `rotate(${Math.random() * 360}deg)`;
 
-    piece.style.background =
-      [
-        "#2e7d32",
-        "#66bb6a",
-        "#f9c74f",
-        "#ffffff",
-        "#81c784"
-      ][Math.floor(Math.random() * 5)];
+    const pieces = 45;
 
-    container.appendChild(piece);
+
+    for (
+      let i = 0;
+      i < pieces;
+      i++
+    ) {
+
+      const piece =
+        document.createElement(
+          "span"
+        );
+
+
+      piece.className =
+        "confetti-piece";
+
+
+      piece.style.left =
+        Math.random() * 100 + "%";
+
+
+      piece.style.animationDelay =
+        Math.random() * 0.25 + "s";
+
+
+      piece.style.transform =
+        `rotate(${Math.random() * 360}deg)`;
+
+
+      piece.style.background =
+        [
+          "#2e7d32",
+          "#66bb6a",
+          "#f9c74f",
+          "#ffffff",
+          "#81c784"
+        ][
+          Math.floor(
+            Math.random() * 5
+          )
+        ];
+
+
+      container.appendChild(
+        piece
+      );
+
+    }
+
+
+    document.body.appendChild(
+      container
+    );
+
+
+    setTimeout(() => {
+
+      container.remove();
+
+    }, 1600);
+
   }
 
-  document.body.appendChild(container);
-
-  setTimeout(() => {
-    container.remove();
-  }, 1600);
-}
 
   /* =========================================================
      WELCOME
@@ -191,7 +254,9 @@ function showConfetti() {
 
   function renderWelcome() {
 
-    document.querySelector("#app").innerHTML = `
+    document.querySelector(
+      "#app"
+    ).innerHTML = `
 
       <section class="welcome card">
 
@@ -277,8 +342,11 @@ function showConfetti() {
 
     `;
 
+
     document
-      .querySelector("#start-form")
+      .querySelector(
+        "#start-form"
+      )
       .addEventListener(
         "submit",
         startRespondent
@@ -295,6 +363,7 @@ function showConfetti() {
 
     event.preventDefault();
 
+
     const code =
       document
         .querySelector(
@@ -304,10 +373,12 @@ function showConfetti() {
         .trim()
         .toUpperCase();
 
+
     const message =
       document.querySelector(
         "#start-message"
       );
+
 
     try {
 
@@ -410,11 +481,14 @@ function showConfetti() {
       });
 
 
-      renderArticle(article);
+      renderArticle(
+        article
+      );
 
     } catch (error) {
 
       console.error(error);
+
 
       message.innerHTML =
         setMessage(
@@ -436,15 +510,6 @@ function showConfetti() {
       getSession();
 
 
-    /*
-      NEW FORMAT
-
-      paragraphs: [...]
-      games: [...]
-
-      This is the format we are using now.
-    */
-
     if (
       Array.isArray(
         article.paragraphs
@@ -461,12 +526,6 @@ function showConfetti() {
     }
 
 
-    /*
-      OLD FORMAT
-
-      Keeps older articles working.
-    */
-
     renderOldArticle(
       article,
       session
@@ -479,126 +538,237 @@ function showConfetti() {
      NEW ARTICLE FORMAT
   ========================================================= */
 
-function renderArticleWithGames(article) {
+  function renderArticleWithGames(article) {
 
-  const session = getSession();
-
-  const paragraphs =
-    Array.isArray(article.paragraphs)
-      ? article.paragraphs
-      : [];
-
-  const games =
-    Array.isArray(article.games)
-      ? article.games
-      : [];
-
-  const totalParagraphs =
-    paragraphs.length;
+    const session =
+      getSession();
 
 
-  /*
-    ---------------------------------------------------------
-    BUILD GAME MAP
-    ---------------------------------------------------------
-  */
+    const paragraphs =
+      Array.isArray(
+        article.paragraphs
+      )
+        ? article.paragraphs
+        : [];
 
-const gameMap = {};
 
-games.forEach(game => {
+    const games =
+      Array.isArray(
+        article.games
+      )
+        ? article.games
+        : [];
 
-  let position = null;
 
-  Object.keys(game).forEach(key => {
+    const totalParagraphs =
+      paragraphs.length;
 
-    if (key.startsWith("afterPage")) {
 
-      const pageNumber =
-        Number(
-          key.replace(
-            "afterPage",
-            ""
+    /*
+      ---------------------------------------------------------
+      BUILD GAME MAP
+      ---------------------------------------------------------
+
+      Supported Firebase formats:
+
+      1. New researcher format:
+
+         afterPage1: 1
+         afterPage2: 1
+
+      2. Older format:
+
+         position: 1
+         position: 2
+    */
+
+    const gameMap = {};
+
+
+    games.forEach(game => {
+
+      let position =
+        null;
+
+
+      /*
+        -----------------------------------------------
+        FORMAT 1
+        afterPage1 / afterPage2 / afterPage3
+        -----------------------------------------------
+      */
+
+      Object.keys(game).forEach(key => {
+
+        if (
+          key.startsWith(
+            "afterPage"
           )
-        );
+        ) {
+
+          const pageNumber =
+            Number(
+              key.substring(
+                "afterPage".length
+              )
+            );
+
+
+          const enabled =
+            Number(
+              game[key]
+            );
+
+
+          if (
+            Number.isInteger(
+              pageNumber
+            ) &&
+            pageNumber >= 1 &&
+            enabled === 1
+          ) {
+
+            position =
+              pageNumber;
+
+          }
+
+        }
+
+      });
+
+
+      /*
+        -----------------------------------------------
+        FORMAT 2
+        position
+        -----------------------------------------------
+      */
 
       if (
-        Number.isInteger(pageNumber) &&
-        game[key] === 1
+        position === null &&
+        game.position !== undefined
       ) {
-        position = pageNumber;
+
+        const oldPosition =
+          Number(
+            game.position
+          );
+
+
+        if (
+          Number.isInteger(
+            oldPosition
+          )
+        ) {
+
+          position =
+            oldPosition;
+
+        }
+
       }
 
-    }
 
-  });
+      /*
+        -----------------------------------------------
+        SAVE VALID GAME
+        -----------------------------------------------
+      */
 
-  // Keep compatibility with the old position format
-  if (position === null) {
+      if (
+        Number.isInteger(
+          position
+        ) &&
+        position >= 1 &&
+        position <= totalParagraphs
+      ) {
 
-    const oldPosition =
-      Number(game.position);
+        gameMap[position] =
+          game;
 
-    if (
-      Number.isInteger(oldPosition)
-    ) {
-      position = oldPosition;
-    }
+      }
 
-  }
-
-  if (
-    Number.isInteger(position) &&
-    position >= 1 &&
-    position <= totalParagraphs
-  ) {
-    gameMap[position] = game;
-  }
-
-});
-
-  /*
-    ---------------------------------------------------------
-    BUILD BOOK PAGES
-    ---------------------------------------------------------
-
-    Example:
-
-    paragraphs 1-2
-    game after 2
-    = PAGE 1
-
-    paragraphs 3-4
-    game after 4
-    = PAGE 2
-
-    paragraphs 5-6
-    = PAGE 3
-
-    The article remains ONE continuous story.
-  */
-
-  const pages = [];
-
-  let currentParagraphs = [];
-
-  for (
-    let i = 1;
-    i <= totalParagraphs;
-    i++
-  ) {
-
-    currentParagraphs.push({
-      number: i,
-      text: paragraphs[i - 1]
     });
 
 
     /*
-      If there is a game after this paragraph,
-      finish the current book page.
+      ---------------------------------------------------------
+      BUILD BOOK PAGES
+      ---------------------------------------------------------
+
+      Example:
+
+      paragraph 1
+      game after page 1
+
+      paragraph 2
+      game after page 2
+
+      remaining paragraphs
+      final quiz
     */
 
-    if (gameMap[i]) {
+    const pages = [];
+
+
+    let currentParagraphs =
+      [];
+
+
+    for (
+      let i = 1;
+      i <= totalParagraphs;
+      i++
+    ) {
+
+      currentParagraphs.push({
+
+        number:
+          i,
+
+        text:
+          paragraphs[
+            i - 1
+          ]
+
+      });
+
+
+      if (
+        gameMap[i]
+      ) {
+
+        pages.push({
+
+          paragraphs:
+            currentParagraphs,
+
+          game:
+            gameMap[i],
+
+          gamePosition:
+            i
+
+        });
+
+
+        currentParagraphs =
+          [];
+
+      }
+
+    }
+
+
+    /*
+      Add remaining paragraphs
+      to the final page.
+    */
+
+    if (
+      currentParagraphs.length > 0
+    ) {
 
       pages.push({
 
@@ -606,972 +776,698 @@ games.forEach(game => {
           currentParagraphs,
 
         game:
-          gameMap[i],
+          null,
 
         gamePosition:
-          i
+          null
 
       });
 
-      currentParagraphs = [];
-
     }
-
-  }
-
-
-  /*
-    Add remaining paragraphs as final page.
-  */
-
-  if (
-    currentParagraphs.length > 0
-  ) {
-
-    pages.push({
-
-      paragraphs:
-        currentParagraphs,
-
-      game:
-        null,
-
-      gamePosition:
-        null
-
-    });
-
-  }
-
-
-  /*
-    Safety fallback
-  */
-
-  if (
-    pages.length === 0
-  ) {
-
-    pages.push({
-
-      paragraphs: [],
-
-      game: null,
-
-      gamePosition: null
-
-    });
-
-  }
-
-
-  /*
-    ---------------------------------------------------------
-    RENDER BOOK
-    ---------------------------------------------------------
-  */
-
-  document.querySelector(
-    "#app"
-  ).innerHTML = `
-
-    <div class="topbar">
-
-      <div class="progress-wrap">
-
-        <div class="progress-label">
-
-          <span>
-            NewsQuest
-          </span>
-
-          <span id="book-page-label">
-            Page 1 / ${pages.length}
-          </span>
-
-        </div>
-
-        <div class="progress-track">
-
-          <div
-            id="book-progress"
-            class="progress-fill"
-            style="width: 0%"
-          ></div>
-
-        </div>
-
-      </div>
-
-      <div class="points">
-        +0 points
-      </div>
-
-    </div>
-
-
-    <article class="newsquest-book">
-
-      <div
-        class="book-shell"
-        id="newsquest-book"
-      >
-
-        <div
-          class="book-page-area"
-          id="book-page-area"
-        >
-
-          ${
-            pages
-              .map(
-                (
-                  page,
-                  pageIndex
-                ) => {
-
-                  const firstParagraph =
-                    page.paragraphs[0];
-
-                  const isFirstPage =
-                    pageIndex === 0;
-
-
-                  return `
-
-                    <section
-                      class="
-                        nq-page
-                        ${
-                          isFirstPage
-                            ? "nq-page-active"
-                            : ""
-                        }
-                      "
-                      data-page="${pageIndex}"
-                    >
-
-                      <div class="nq-page-inner">
-
-                        <div class="nq-page-header">
-
-                          <div class="nq-publication">
-                            NEWSQUEST
-                          </div>
-
-                          <div class="nq-page-number">
-
-                            ${
-                              String(
-                                pageIndex + 1
-                              ).padStart(
-                                2,
-                                "0"
-                              )
-                            }
-
-                          </div>
-
-                        </div>
-
-
-                        ${
-                          isFirstPage
-                            ? `
-
-                              <div class="nq-article-kicker">
-
-                                Set
-                                ${escapeHTML(
-                                  session?.set || ""
-                                )}
-
-                                · Assigned Reading
-
-                              </div>
-
-                              <h1 class="nq-title">
-
-                                ${escapeHTML(
-                                  article.title || ""
-                                )}
-
-                              </h1>
-
-                              ${
-                                article.image
-                                  ? `
-
-                                    <img
-                                      src="${escapeAttr(
-                                        article.image
-                                      )}"
-                                      alt="${escapeAttr(
-                                        article.title ||
-                                        "Article image"
-                                      )}"
-                                      class="nq-hero-image"
-                                    >
-
-                                  `
-                                  : ""
-                              }
-
-                            `
-                            : `
-
-                              <div class="nq-continuation">
-
-                                STORY CONTINUES
-
-                              </div>
-
-                            `
-                        }
-
-
-                        <div class="nq-story-content">
-
-                          ${
-                            page.paragraphs
-                              .map(
-                                (
-                                  paragraph,
-                                  paragraphIndex
-                                ) => `
-
-                                  <p
-                                    class="
-                                      nq-paragraph
-                                      ${
-                                        paragraphIndex === 0 &&
-                                        isFirstPage
-                                          ? "nq-dropcap"
-                                          : ""
-                                      }
-                                    "
-                                  >
-
-                                    ${escapeHTML(
-                                      paragraph.text
-                                    )}
-
-                                  </p>
-
-                                `
-                              )
-                              .join("")
-                          }
-
-                        </div>
-
-
-                        ${
-                          page.game
-                            ? `
-
-                              <div
-                                class="
-                                  nq-game-break
-                                "
-                              >
-
-                                <div class="nq-game-line"></div>
-
-                                <div class="nq-game-label">
-
-                                  READER CHALLENGE
-
-                                </div>
-
-                                <div
-                                  class="nq-game-wrapper interactive-game"
-                                  data-game-position="${
-                                    page.gamePosition
-                                  }"
-                                >
-
-                                  ${renderReaderGame(
-                                    page.game
-                                  )}
-
-                                </div>
-
-                              </div>
-
-                            `
-                            : ""
-                        }
-
-
-                        ${
-                          !page.game &&
-                          pageIndex ===
-                            pages.length - 1
-                            ? `
-
-                              <div
-                                id="final-reading-action"
-                                class="nq-final-action"
-                              >
-
-                                <div class="nq-game-line"></div>
-
-                                <div class="nq-game-label">
-                                  ARTICLE COMPLETE
-                                </div>
-
-                                <button
-                                  id="begin-quiz"
-                                  class="primary-btn"
-                                  type="button"
-                                >
-
-                                  Proceed to Final Quiz →
-
-                                </button>
-
-                              </div>
-
-                            `
-                            : ""
-                        }
-
-
-                        <div class="nq-page-footer">
-
-                          <span>
-                            ${
-                              pageIndex === 0
-                                ? "THE DAILY STORY"
-                                : "STORY CONTINUES"
-                            }
-                          </span>
-
-                          <span>
-                            ${
-                              String(
-                                pageIndex + 1
-                              ).padStart(
-                                2,
-                                "0"
-                              )
-                            }
-                          </span>
-
-                        </div>
-
-                      </div>
-
-                    </section>
-
-                  `;
-
-                }
-              )
-              .join("")
-          }
-
-        </div>
-
-      </div>
-
-
-      <div class="nq-book-navigation">
-
-        <button
-          id="book-prev"
-          class="nq-nav-button"
-          type="button"
-        >
-          ← Previous
-        </button>
-
-
-        <div class="nq-swipe-label">
-
-          ← Swipe to turn the page →
-
-        </div>
-
-
-        <button
-          id="book-next"
-          class="nq-nav-button nq-nav-primary"
-          type="button"
-        >
-          Next →
-
-        </button>
-
-      </div>
-
-    </article>
-
-  `;
-
-
-  /*
-    ---------------------------------------------------------
-    BOOK STATE
-    ---------------------------------------------------------
-  */
-
-  let currentPage = 0;
-
-  const pageElements =
-    Array.from(
-      document.querySelectorAll(
-        ".nq-page"
-      )
-    );
-
-  const pageLabel =
-    document.querySelector(
-      "#book-page-label"
-    );
-
-  const progress =
-    document.querySelector(
-      "#book-progress"
-    );
-
-  const previousButton =
-    document.querySelector(
-      "#book-prev"
-    );
-
-  const nextButton =
-    document.querySelector(
-      "#book-next"
-    );
-
-  const bookArea =
-    document.querySelector(
-      "#book-page-area"
-    );
-
-
-  /*
-    Track which pages have been unlocked.
-  */
-
-  const unlockedPages =
-    new Set([0]);
-
-
-  /*
-    ---------------------------------------------------------
-    RENDER CURRENT PAGE
-    ---------------------------------------------------------
-  */
-
-  function renderBookPage(
-    pageIndex,
-    direction = "next"
-  ) {
-
-    if (
-      pageIndex < 0 ||
-      pageIndex >= pageElements.length
-    ) {
-
-      return;
-
-    }
-
-
-    if (
-      !unlockedPages.has(
-        pageIndex
-      )
-    ) {
-
-      return;
-
-    }
-
-
-    currentPage =
-      pageIndex;
-
-
-    pageElements.forEach(
-      (
-        page,
-        index
-      ) => {
-
-        page.classList.remove(
-          "nq-page-active",
-          "nq-page-left",
-          "nq-page-right"
-        );
-
-
-        if (
-          index === currentPage
-        ) {
-
-          page.classList.add(
-            "nq-page-active"
-          );
-
-        }
-
-        else if (
-          index < currentPage
-        ) {
-
-          page.classList.add(
-            "nq-page-left"
-          );
-
-        }
-
-        else {
-
-          page.classList.add(
-            "nq-page-right"
-          );
-
-        }
-
-      }
-    );
-
-
-    const totalPages =
-      pageElements.length;
-
-
-    pageLabel.textContent =
-      `Page ${
-        currentPage + 1
-      } / ${
-        totalPages
-      }`;
-
-
-    progress.style.width =
-      `${
-        (
-          (
-            currentPage + 1
-          ) /
-          totalPages
-        ) *
-        100
-      }%`;
-
-
-    previousButton.disabled =
-      currentPage === 0;
-
-
-    const isLastPage =
-      currentPage ===
-      totalPages - 1;
-
-
-    nextButton.textContent =
-      isLastPage
-        ? "Finished"
-        : "Next →";
 
 
     /*
-      If next page is locked,
-      make the button clearly disabled.
+      Safety fallback
     */
 
-    const nextPage =
-      currentPage + 1;
-
-
     if (
-      !isLastPage &&
-      !unlockedPages.has(
-        nextPage
-      )
+      pages.length === 0
     ) {
 
-      nextButton.disabled =
-        true;
+      pages.push({
 
-      nextButton.textContent =
-        "Complete challenge →";
+        paragraphs: [],
+
+        game:
+          null,
+
+        gamePosition:
+          null
+
+      });
 
     }
 
-    else {
 
-      nextButton.disabled =
-        false;
+    /*
+      ---------------------------------------------------------
+      RENDER BOOK
+      ---------------------------------------------------------
+    */
 
-    }
+    document.querySelector(
+      "#app"
+    ).innerHTML = `
 
-  }
+      <div class="topbar">
+
+        <div class="progress-wrap">
+
+          <div class="progress-label">
+
+            <span>
+              NewsQuest
+            </span>
+
+            <span id="book-page-label">
+              Page 1 / ${pages.length}
+            </span>
+
+          </div>
 
 
-  /*
-    ---------------------------------------------------------
-    UNLOCK NEXT PAGE
-    ---------------------------------------------------------
-  */
+          <div class="progress-track">
 
-  function unlockNextPage() {
+            <div
+              id="book-progress"
+              class="progress-fill"
+              style="width: 0%"
+            ></div>
 
-    const nextPage =
-      currentPage + 1;
+          </div>
+
+        </div>
 
 
-    if (
-      nextPage <
-      pageElements.length
-    ) {
+        <div class="points">
+          +0 points
+        </div>
 
-      unlockedPages.add(
-        nextPage
+      </div>
+
+
+      <article class="newsquest-book">
+
+        <div
+          class="book-shell"
+          id="newsquest-book"
+        >
+
+          <div
+            class="book-page-area"
+            id="book-page-area"
+          >
+
+            ${
+              pages
+                .map(
+                  (
+                    page,
+                    pageIndex
+                  ) => {
+
+                    const isFirstPage =
+                      pageIndex === 0;
+
+
+                    return `
+
+                      <section
+                        class="
+                          nq-page
+                          ${
+                            isFirstPage
+                              ? "nq-page-active"
+                              : ""
+                          }
+                        "
+                        data-page="${pageIndex}"
+                      >
+
+                        <div class="nq-page-inner">
+
+                          <div class="nq-page-header">
+
+                            <div class="nq-publication">
+                              NEWSQUEST
+                            </div>
+
+
+                            <div class="nq-page-number">
+
+                              ${
+                                String(
+                                  pageIndex + 1
+                                ).padStart(
+                                  2,
+                                  "0"
+                                )
+                              }
+
+                            </div>
+
+                          </div>
+
+
+                          ${
+                            isFirstPage
+                              ? `
+
+                                <div class="nq-article-kicker">
+
+                                  Set
+                                  ${escapeHTML(
+                                    session?.set || ""
+                                  )}
+
+                                  · Assigned Reading
+
+                                </div>
+
+
+                                <h1 class="nq-title">
+
+                                  ${escapeHTML(
+                                    article.title || ""
+                                  )}
+
+                                </h1>
+
+
+                                ${
+                                  article.image
+                                    ? `
+
+                                      <img
+                                        src="${escapeAttr(
+                                          article.image
+                                        )}"
+                                        alt="${escapeAttr(
+                                          article.title ||
+                                          "Article image"
+                                        )}"
+                                        class="nq-hero-image"
+                                      >
+
+                                    `
+                                    : ""
+                                }
+
+                              `
+                              : `
+
+                                <div class="nq-continuation">
+
+                                  STORY CONTINUES
+
+                                </div>
+
+                              `
+                          }
+
+
+                          <div class="nq-story-content">
+
+                            ${
+                              page.paragraphs
+                                .map(
+                                  (
+                                    paragraph,
+                                    paragraphIndex
+                                  ) => `
+
+                                    <p
+                                      class="
+                                        nq-paragraph
+                                        ${
+                                          paragraphIndex === 0 &&
+                                          isFirstPage
+                                            ? "nq-dropcap"
+                                            : ""
+                                        }
+                                      "
+                                    >
+
+                                      ${escapeHTML(
+                                        paragraph.text
+                                      )}
+
+                                    </p>
+
+                                  `
+                                )
+                                .join("")
+                            }
+
+                          </div>
+
+
+                          ${
+                            page.game
+                              ? `
+
+                                <div
+                                  class="nq-game-break"
+                                >
+
+                                  <div
+                                    class="nq-game-line"
+                                  ></div>
+
+
+                                  <div
+                                    class="nq-game-label"
+                                  >
+                                    READER CHALLENGE
+                                  </div>
+
+
+                                  <div
+                                    class="nq-game-wrapper interactive-game"
+                                    data-game-position="${page.gamePosition}"
+                                  >
+
+                                    ${renderReaderGame(
+                                      page.game
+                                    )}
+
+                                  </div>
+
+                                </div>
+
+                              `
+                              : ""
+                          }
+
+
+                          ${
+                            !page.game &&
+                            pageIndex ===
+                              pages.length - 1
+                              ? `
+
+                                <div
+                                  id="final-reading-action"
+                                  class="nq-final-action"
+                                >
+
+                                  <div
+                                    class="nq-game-line"
+                                  ></div>
+
+
+                                  <div
+                                    class="nq-game-label"
+                                  >
+                                    ARTICLE COMPLETE
+                                  </div>
+
+
+                                  <button
+                                    id="begin-quiz"
+                                    class="primary-btn"
+                                    type="button"
+                                  >
+                                    Proceed to Final Quiz →
+                                  </button>
+
+                                </div>
+
+                              `
+                              : ""
+                          }
+
+
+                          <div class="nq-page-footer">
+
+                            <span>
+
+                              ${
+                                pageIndex === 0
+                                  ? "THE DAILY STORY"
+                                  : "STORY CONTINUES"
+                              }
+
+                            </span>
+
+
+                            <span>
+
+                              ${
+                                String(
+                                  pageIndex + 1
+                                ).padStart(
+                                  2,
+                                  "0"
+                                )
+                              }
+
+                            </span>
+
+                          </div>
+
+
+                        </div>
+
+                      </section>
+
+                    `;
+
+                  }
+                )
+                .join("")
+            }
+
+          </div>
+
+        </div>
+
+
+        <div class="nq-book-navigation">
+
+          <button
+            id="book-prev"
+            class="nq-nav-button"
+            type="button"
+          >
+            ← Previous
+          </button>
+
+
+          <div class="nq-swipe-label">
+            ← Swipe to turn the page →
+          </div>
+
+
+          <button
+            id="book-next"
+            class="nq-nav-button nq-nav-primary"
+            type="button"
+          >
+            Next →
+          </button>
+
+        </div>
+
+      </article>
+
+    `;
+
+
+    /*
+      ---------------------------------------------------------
+      BOOK STATE
+      ---------------------------------------------------------
+    */
+
+    let currentPage =
+      0;
+
+
+    const pageElements =
+      Array.from(
+        document.querySelectorAll(
+          ".nq-page"
+        )
       );
 
 
-      /*
-        Small delay makes the transition
-        feel intentional.
-      */
-
-      setTimeout(
-        () => {
-
-          renderBookPage(
-            nextPage,
-            "next"
-          );
-
-        },
-        350
+    const pageLabel =
+      document.querySelector(
+        "#book-page-label"
       );
 
-    }
 
-  }
+    const progress =
+      document.querySelector(
+        "#book-progress"
+      );
 
 
-  /*
-    ---------------------------------------------------------
-    NAVIGATION
-    ---------------------------------------------------------
-  */
+    const previousButton =
+      document.querySelector(
+        "#book-prev"
+      );
 
-  previousButton.addEventListener(
-    "click",
-    () => {
+
+    const nextButton =
+      document.querySelector(
+        "#book-next"
+      );
+
+
+    const bookArea =
+      document.querySelector(
+        "#book-page-area"
+      );
+
+
+    const unlockedPages =
+      new Set([0]);
+
+
+    /*
+      ---------------------------------------------------------
+      RENDER CURRENT PAGE
+      ---------------------------------------------------------
+    */
+
+    function renderBookPage(
+      pageIndex
+    ) {
 
       if (
-        currentPage > 0
+        pageIndex < 0 ||
+        pageIndex >= pageElements.length
       ) {
 
-        renderBookPage(
-          currentPage - 1,
-          "previous"
-        );
+        return;
 
       }
 
-    }
-  );
+
+      if (
+        !unlockedPages.has(
+          pageIndex
+        )
+      ) {
+
+        return;
+
+      }
 
 
-  nextButton.addEventListener(
-    "click",
-    () => {
+      currentPage =
+        pageIndex;
+
+
+      pageElements.forEach(
+        (
+          page,
+          index
+        ) => {
+
+          page.classList.remove(
+            "nq-page-active",
+            "nq-page-left",
+            "nq-page-right"
+          );
+
+
+          if (
+            index === currentPage
+          ) {
+
+            page.classList.add(
+              "nq-page-active"
+            );
+
+          }
+
+          else if (
+            index < currentPage
+          ) {
+
+            page.classList.add(
+              "nq-page-left"
+            );
+
+          }
+
+          else {
+
+            page.classList.add(
+              "nq-page-right"
+            );
+
+          }
+
+        }
+      );
+
+
+      const totalPages =
+        pageElements.length;
+
+
+      pageLabel.textContent =
+        `Page ${
+          currentPage + 1
+        } / ${
+          totalPages
+        }`;
+
+
+      progress.style.width =
+        `${
+          (
+            (
+              currentPage + 1
+            ) /
+            totalPages
+          ) *
+          100
+        }%`;
+
+
+      previousButton.disabled =
+        currentPage === 0;
+
+
+      const isLastPage =
+        currentPage ===
+        totalPages - 1;
+
+
+      nextButton.textContent =
+        isLastPage
+          ? "Finished"
+          : "Next →";
+
 
       const nextPage =
         currentPage + 1;
 
 
       if (
-        nextPage <
-        pageElements.length &&
-        unlockedPages.has(
+        !isLastPage &&
+        !unlockedPages.has(
           nextPage
         )
       ) {
 
-        renderBookPage(
-          nextPage,
-          "next"
-        );
+        nextButton.disabled =
+          true;
+
+        nextButton.textContent =
+          "Complete challenge →";
+
+      }
+
+      else {
+
+        nextButton.disabled =
+          false;
 
       }
 
     }
-  );
 
 
-  /*
-    ---------------------------------------------------------
-    SWIPE SUPPORT
-    ---------------------------------------------------------
-  */
+    /*
+      ---------------------------------------------------------
+      NAVIGATION
+      ---------------------------------------------------------
+    */
 
-  let touchStartX =
-    0;
+    previousButton.addEventListener(
+      "click",
+      () => {
 
-  let touchStartY =
-    0;
+        if (
+          currentPage > 0
+        ) {
 
+          renderBookPage(
+            currentPage - 1
+          );
 
-  bookArea.addEventListener(
-    "touchstart",
-    event => {
-
-      const touch =
-        event.changedTouches[0];
-
-      touchStartX =
-        touch.clientX;
-
-      touchStartY =
-        touch.clientY;
-
-    },
-    {
-      passive: true
-    }
-  );
-
-
-  bookArea.addEventListener(
-    "touchend",
-    event => {
-
-      const touch =
-        event.changedTouches[0];
-
-      const deltaX =
-        touch.clientX -
-        touchStartX;
-
-      const deltaY =
-        touch.clientY -
-        touchStartY;
-
-
-      /*
-        Ignore mostly vertical swipes.
-      */
-
-      if (
-        Math.abs(deltaX) <
-        60 ||
-        Math.abs(deltaX) <
-        Math.abs(deltaY)
-      ) {
-
-        return;
+        }
 
       }
+    );
 
 
-      /*
-        Swipe LEFT = next page
-      */
-
-      if (
-        deltaX < 0
-      ) {
+    nextButton.addEventListener(
+      "click",
+      () => {
 
         const nextPage =
           currentPage + 1;
 
 
         if (
+          nextPage <
+            pageElements.length &&
           unlockedPages.has(
             nextPage
           )
         ) {
 
           renderBookPage(
-            nextPage,
-            "next"
-          );
-
-        }
-
-      }
-
-
-      /*
-        Swipe RIGHT = previous page
-      */
-
-      else {
-
-        const previousPage =
-          currentPage - 1;
-
-
-        if (
-          previousPage >= 0
-        ) {
-
-          renderBookPage(
-            previousPage,
-            "previous"
-          );
-
-        }
-
-      }
-
-    },
-    {
-      passive: true
-    }
-  );
-
-
-  /*
-    ---------------------------------------------------------
-    MOUSE / TRACKPAD SWIPE
-    ---------------------------------------------------------
-  */
-
-  let pointerStartX =
-    0;
-
-
-  bookArea.addEventListener(
-    "pointerdown",
-    event => {
-
-      pointerStartX =
-        event.clientX;
-
-    }
-  );
-
-
-  bookArea.addEventListener(
-    "pointerup",
-    event => {
-
-      const deltaX =
-        event.clientX -
-        pointerStartX;
-
-
-      if (
-        Math.abs(deltaX) <
-        70
-      ) {
-
-        return;
-
-      }
-
-
-      if (
-        deltaX < 0
-      ) {
-
-        const nextPage =
-          currentPage + 1;
-
-
-        if (
-          unlockedPages.has(
             nextPage
-          )
-        ) {
-
-          renderBookPage(
-            nextPage,
-            "next"
           );
 
         }
 
       }
-
-      else {
-
-        const previousPage =
-          currentPage - 1;
+    );
 
 
-        if (
-          previousPage >= 0
-        ) {
+    /*
+      ---------------------------------------------------------
+      SWIPE SUPPORT
+      ---------------------------------------------------------
+    */
 
-          renderBookPage(
-            previousPage,
-            "previous"
-          );
+    let touchStartX = 0;
+    let touchStartY = 0;
 
-        }
 
+    bookArea.addEventListener(
+      "touchstart",
+      event => {
+
+        const touch =
+          event.changedTouches[0];
+
+
+        touchStartX =
+          touch.clientX;
+
+
+        touchStartY =
+          touch.clientY;
+
+      },
+      {
+        passive: true
       }
-
-    }
-  );
+    );
 
 
-  /*
-    ---------------------------------------------------------
-    GAME BUTTONS
-    ---------------------------------------------------------
-  */
+    bookArea.addEventListener(
+      "touchend",
+      event => {
 
-  document
-    .querySelectorAll(
-      ".interactive-game"
-    )
-    .forEach(
-      gameContainer => {
-
-        const position =
-          Number(
-            gameContainer.dataset
-              .gamePosition
-          );
+        const touch =
+          event.changedTouches[0];
 
 
-        const game =
-          gameMap[position];
+        const deltaX =
+          touch.clientX -
+          touchStartX;
 
 
-        if (!game) {
-
-          return;
-
-        }
-
-
-        const input =
-          gameContainer.querySelector(
-            ".game-answer"
-          );
-
-
-        const button =
-          gameContainer.querySelector(
-            ".game-submit"
-          );
-
-
-        const message =
-          gameContainer.querySelector(
-            ".game-message"
-          );
+        const deltaY =
+          touch.clientY -
+          touchStartY;
 
 
         if (
-          !input ||
-          !button ||
-          !message
+          Math.abs(deltaX) < 60 ||
+          Math.abs(deltaX) <
+            Math.abs(deltaY)
         ) {
 
           return;
@@ -1579,109 +1475,302 @@ games.forEach(game => {
         }
 
 
-        button.addEventListener(
-          "click",
-          () => {
+        if (
+          deltaX < 0
+        ) {
 
-            const userAnswer =
-              input.value
-                .trim()
-                .toLowerCase();
+          const nextPage =
+            currentPage + 1;
 
 
-            const correctAnswer =
-              String(
-                game.answer || ""
-              )
-                .trim()
-                .toLowerCase();
+          if (
+            unlockedPages.has(
+              nextPage
+            )
+          ) {
+
+            renderBookPage(
+              nextPage
+            );
+
+          }
+
+        }
+
+        else {
+
+          const previousPage =
+            currentPage - 1;
 
 
-            if (!userAnswer) {
+          if (
+            previousPage >= 0
+          ) {
 
-              message.innerHTML =
-                setMessage(
-                  "Please enter your answer first."
-                );
+            renderBookPage(
+              previousPage
+            );
 
-              return;
+          }
 
-            }
+        }
 
-
-            /*
-              CORRECT ANSWER
-            */
-
-            if (
-              userAnswer ===
-              correctAnswer
-            ) {
-
-              showConfetti();
-             playSound("correct.mp3");
-
-              message.innerHTML =
-                setMessage(
-                  "Correct! Great job.",
-                  "success"
-                );
+      },
+      {
+        passive: true
+      }
+    );
 
 
-              input.disabled =
-                true;
+    /*
+      ---------------------------------------------------------
+      MOUSE / TRACKPAD SWIPE
+      ---------------------------------------------------------
+    */
 
-              button.disabled =
-                true;
+    let pointerStartX =
+      0;
+
+
+    bookArea.addEventListener(
+      "pointerdown",
+      event => {
+
+        pointerStartX =
+          event.clientX;
+
+      }
+    );
+
+
+    bookArea.addEventListener(
+      "pointerup",
+      event => {
+
+        const deltaX =
+          event.clientX -
+          pointerStartX;
+
+
+        if (
+          Math.abs(deltaX) < 70
+        ) {
+
+          return;
+
+        }
+
+
+        if (
+          deltaX < 0
+        ) {
+
+          const nextPage =
+            currentPage + 1;
+
+
+          if (
+            unlockedPages.has(
+              nextPage
+            )
+          ) {
+
+            renderBookPage(
+              nextPage
+            );
+
+          }
+
+        }
+
+        else {
+
+          const previousPage =
+            currentPage - 1;
+
+
+          if (
+            previousPage >= 0
+          ) {
+
+            renderBookPage(
+              previousPage
+            );
+
+          }
+
+        }
+
+      }
+    );
+
+
+    /*
+      ---------------------------------------------------------
+      GAME BUTTONS
+      ---------------------------------------------------------
+    */
+
+    document
+      .querySelectorAll(
+        ".interactive-game"
+      )
+      .forEach(
+        gameContainer => {
+
+          const position =
+            Number(
+              gameContainer.dataset
+                .gamePosition
+            );
+
+
+          const game =
+            gameMap[position];
+
+
+          if (!game) {
+
+            return;
+
+          }
+
+
+          const input =
+            gameContainer.querySelector(
+              ".game-answer"
+            );
+
+
+          const button =
+            gameContainer.querySelector(
+              ".game-submit"
+            );
+
+
+          const message =
+            gameContainer.querySelector(
+              ".game-message"
+            );
+
+
+          if (
+            !input ||
+            !button ||
+            !message
+          ) {
+
+            return;
+
+          }
+
+
+          button.addEventListener(
+            "click",
+            () => {
+
+              const userAnswer =
+                input.value
+                  .trim()
+                  .toLowerCase();
+
+
+              const correctAnswer =
+                String(
+                  game.answer || ""
+                )
+                  .trim()
+                  .toLowerCase();
+
+
+              if (!userAnswer) {
+
+                message.innerHTML =
+                  setMessage(
+                    "Please enter your answer first."
+                  );
+
+                return;
+
+              }
 
 
               /*
-                Unlock the next book page.
+                CORRECT
               */
 
-              const pageElement =
-                gameContainer.closest(
-                  ".nq-page"
+              if (
+                userAnswer ===
+                correctAnswer
+              ) {
+
+                showConfetti();
+
+
+                playSound(
+                  "correct.mp3"
                 );
 
 
-              if (pageElement) {
-
-                const pageIndex =
-                  Number(
-                    pageElement.dataset
-                      .page
+                message.innerHTML =
+                  setMessage(
+                    "Correct! Great job.",
+                    "success"
                   );
 
 
-                const nextPage =
-                  pageIndex + 1;
+                input.disabled =
+                  true;
+
+
+                button.disabled =
+                  true;
+
+
+                const pageElement =
+                  gameContainer.closest(
+                    ".nq-page"
+                  );
 
 
                 if (
-                  nextPage <
-                  pageElements.length
+                  pageElement
                 ) {
 
-                  unlockedPages.add(
-                    nextPage
-                  );
+                  const pageIndex =
+                    Number(
+                      pageElement.dataset
+                        .page
+                    );
 
 
-                  /*
-                    Enable navigation.
-                  */
+                  const nextPage =
+                    pageIndex + 1;
+
 
                   if (
-                    currentPage ===
-                    pageIndex
+                    nextPage <
+                    pageElements.length
                   ) {
 
-                    nextButton.disabled =
-                      false;
+                    unlockedPages.add(
+                      nextPage
+                    );
 
-                    nextButton.textContent =
-                      "Turn Page →";
+
+                    if (
+                      currentPage ===
+                      pageIndex
+                    ) {
+
+                      nextButton.disabled =
+                        false;
+
+
+                      nextButton.textContent =
+                        "Turn Page →";
+
+                    }
 
                   }
 
@@ -1689,66 +1778,76 @@ games.forEach(game => {
 
               }
 
+
+              /*
+                WRONG
+              */
+
+              else {
+
+                playSound(
+                  "wrong.mp3"
+                );
+
+
+                message.innerHTML =
+                  setMessage(
+                    "Not quite. Try again."
+                  );
+
+              }
+
             }
-else {
+          );
 
-  playSound("wrong.mp3");
-
-  message.innerHTML =
-    setMessage(
-      "Not quite. Try again."
-    );
-
-}
-
-          }
-        );
-
-      }
-    );
+        }
+      );
 
 
-  /*
-    ---------------------------------------------------------
-    FINAL QUIZ BUTTON
-    ---------------------------------------------------------
-  */
+    /*
+      ---------------------------------------------------------
+      FINAL QUIZ BUTTON
+      ---------------------------------------------------------
+    */
 
-  const quizButton =
-    document.querySelector(
-      "#begin-quiz"
-    );
+    const quizButton =
+      document.querySelector(
+        "#begin-quiz"
+      );
 
 
-  if (quizButton) {
+    if (quizButton) {
 
-    quizButton.addEventListener(
-      "click",
-      () => {
+      quizButton.addEventListener(
+        "click",
+        () => {
 
-        playSound("proceed.mp3");
+          playSound(
+            "proceed.mp3"
+          );
 
-        renderQuiz(
-          article
-        );
 
-      }
+          renderQuiz(
+            article
+          );
+
+        }
+      );
+
+    }
+
+
+    /*
+      ---------------------------------------------------------
+      START
+      ---------------------------------------------------------
+    */
+
+    renderBookPage(
+      0
     );
 
   }
-
-
-  /*
-    ---------------------------------------------------------
-    START
-    ---------------------------------------------------------
-  */
-
-  renderBookPage(
-    0
-  );
-
-}
 
 
   /* =========================================================
@@ -1767,9 +1866,9 @@ else {
     }
 
 
-    /* ---------------------------------------------------------
-       JUMBLED WORDS
-    --------------------------------------------------------- */
+    /*
+      JUMBLED WORDS
+    */
 
     if (
       game.type ===
@@ -1836,9 +1935,9 @@ else {
     }
 
 
-    /* ---------------------------------------------------------
-       4 PICS 1 WORD
-    --------------------------------------------------------- */
+    /*
+      4 PICS 1 WORD
+    */
 
     if (
       game.type ===
@@ -1925,9 +2024,9 @@ else {
     }
 
 
-    /* ---------------------------------------------------------
-       MINI CROSSWORD
-    --------------------------------------------------------- */
+    /*
+      MINI CROSSWORD
+    */
 
     if (
       game.type ===
@@ -2103,9 +2202,10 @@ else {
       )
       .addEventListener(
         "click",
-        () => renderQuiz(
-          article
-        )
+        () =>
+          renderQuiz(
+            article
+          )
       );
 
   }
@@ -2509,18 +2609,29 @@ else {
       );
 
 
-playSound("complete.mp3");
-showConfetti();    
+      playSound(
+        "complete.mp3"
+      );
 
-await renderResult({
-  ...responseData,
-  submittedAt:
-    new Date().toISOString()
-});
+
+      showConfetti();
+
+
+      await renderResult({
+
+        ...responseData,
+
+        submittedAt:
+          new Date().toISOString()
+
+      });
+
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        error
+      );
 
 
       if (
@@ -2740,14 +2851,16 @@ await renderResult({
                 index + 1;
 
 
-              let medal = "";
+              let medal =
+                "";
 
 
               if (
                 rank === 1
               ) {
 
-                medal = "🥇";
+                medal =
+                  "🥇";
 
               }
 
@@ -2756,7 +2869,8 @@ await renderResult({
                 rank === 2
               ) {
 
-                medal = "🥈";
+                medal =
+                  "🥈";
 
               }
 
@@ -2765,7 +2879,8 @@ await renderResult({
                 rank === 3
               ) {
 
-                medal = "🥉";
+                medal =
+                  "🥉";
 
               }
 
