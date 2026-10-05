@@ -9,7 +9,6 @@
     )
   ]);
 
-
   const {
     getFirestore,
     doc,
@@ -38,10 +37,8 @@
     measurementId: "G-KYXXZ5BEPK"
   };
 
-
   const app =
     initializeApp(firebaseConfig);
-
 
   const db =
     getFirestore(app);
@@ -84,34 +81,6 @@
   }
 
 
-  function playSound(file) {
-
-    const audio =
-      new Audio(file);
-
-    audio.volume = 1.0;
-
-    audio.play()
-      .then(() => {
-
-        console.log(
-          "Sound played:",
-          file
-        );
-
-      })
-      .catch(error => {
-
-        console.log(
-          "Sound blocked:",
-          error
-        );
-
-      });
-
-  }
-
-
   function getSession() {
 
     return JSON.parse(
@@ -148,7 +117,6 @@
         )
       );
 
-
     if (!snapshot.exists()) {
 
       throw new Error(
@@ -157,7 +125,6 @@
 
     }
 
-
     return {
       articleId: snapshot.id,
       ...snapshot.data()
@@ -165,53 +132,25 @@
 
   }
 
-
-  /* =========================================================
-     CONFETTI
-  ========================================================= */
-
   function showConfetti() {
+    const container = document.createElement("div");
 
-    const container =
-      document.createElement(
-        "div"
-      );
-
-
-    container.className =
-      "confetti-container";
-
+    container.className = "confetti-container";
 
     const pieces = 45;
 
+    for (let i = 0; i < pieces; i++) {
+      const piece = document.createElement("span");
 
-    for (
-      let i = 0;
-      i < pieces;
-      i++
-    ) {
+      piece.className = "confetti-piece";
 
-      const piece =
-        document.createElement(
-          "span"
-        );
-
-
-      piece.className =
-        "confetti-piece";
-
-
-      piece.style.left =
-        Math.random() * 100 + "%";
-
+      piece.style.left = Math.random() * 100 + "%";
 
       piece.style.animationDelay =
         Math.random() * 0.25 + "s";
 
-
       piece.style.transform =
         `rotate(${Math.random() * 360}deg)`;
-
 
       piece.style.background =
         [
@@ -220,30 +159,26 @@
           "#f9c74f",
           "#ffffff",
           "#81c784"
-        ][
-          Math.floor(
-            Math.random() * 5
-          )
-        ];
+        ][Math.floor(Math.random() * 5)];
 
-
-      container.appendChild(
-        piece
-      );
-
+      container.appendChild(piece);
     }
 
-
-    document.body.appendChild(
-      container
-    );
-
+    document.body.appendChild(container);
 
     setTimeout(() => {
-
       container.remove();
-
     }, 1600);
+  }
+
+  function playSound(file) {
+
+    const audio = new Audio(file);
+    audio.volume = 1.0;
+
+    audio.play().catch(error => {
+      console.log("Sound blocked:", error);
+    });
 
   }
 
@@ -254,9 +189,7 @@
 
   function renderWelcome() {
 
-    document.querySelector(
-      "#app"
-    ).innerHTML = `
+    document.querySelector("#app").innerHTML = `
 
       <section class="welcome card">
 
@@ -342,11 +275,8 @@
 
     `;
 
-
     document
-      .querySelector(
-        "#start-form"
-      )
+      .querySelector("#start-form")
       .addEventListener(
         "submit",
         startRespondent
@@ -363,7 +293,6 @@
 
     event.preventDefault();
 
-
     const code =
       document
         .querySelector(
@@ -373,12 +302,10 @@
         .trim()
         .toUpperCase();
 
-
     const message =
       document.querySelector(
         "#start-message"
       );
-
 
     try {
 
@@ -481,14 +408,11 @@
       });
 
 
-      renderArticle(
-        article
-      );
+      renderArticle(article);
 
     } catch (error) {
 
       console.error(error);
-
 
       message.innerHTML =
         setMessage(
@@ -504,44 +428,35 @@
      ARTICLE ROUTER
   ========================================================= */
 
- function renderArticle(article) {
+  function renderArticle(article) {
 
-  console.log("========== NEWSQUEST ARTICLE DEBUG ==========");
-  console.log("FULL ARTICLE:", article);
-  console.log("paragraphs:", article.paragraphs);
-  console.log("paragraphs is array:", Array.isArray(article.paragraphs));
-  console.log("paragraphs length:", article.paragraphs?.length);
-  console.log("games:", article.games);
-  console.log("games is array:", Array.isArray(article.games));
-  console.log("games length:", article.games?.length);
-  console.log("questions:", article.questions);
-  console.log("============================================");
+    const session =
+      getSession();
 
-  const session = getSession();
 
-  if (
-    Array.isArray(article.paragraphs) &&
-    article.paragraphs.length > 0
-  ) {
+    if (
+      Array.isArray(
+        article.paragraphs
+      ) &&
+      article.paragraphs.length > 0
+    ) {
 
-    console.log(
-      "NEWSQUEST: Using NEW article renderer"
+      renderArticleWithGames(
+        article
+      );
+
+      return;
+
+    }
+
+
+    renderOldArticle(
+      article,
+      session
     );
 
-    renderArticleWithGames(article);
-
-    return;
   }
 
-  console.log(
-    "NEWSQUEST: Using OLD article renderer"
-  );
-
-  renderOldArticle(
-    article,
-    session
-  );
-}
 
   /* =========================================================
      NEW ARTICLE FORMAT
@@ -549,181 +464,91 @@
 
   function renderArticleWithGames(article) {
 
-    const session =
-      getSession();
-
+    const session = getSession();
 
     const paragraphs =
-      Array.isArray(
-        article.paragraphs
-      )
+      Array.isArray(article.paragraphs)
         ? article.paragraphs
         : [];
 
-
     const games =
-      Array.isArray(
-        article.games
-      )
+      Array.isArray(article.games)
         ? article.games
         : [];
-
 
     const totalParagraphs =
       paragraphs.length;
 
 
-    /*
-      ---------------------------------------------------------
-      BUILD GAME MAP
-      ---------------------------------------------------------
-
-      Supported Firebase formats:
-
-      1. New researcher format:
-
-         afterPage1: 1
-         afterPage2: 1
-
-      2. Older format:
-
-         position: 1
-         position: 2
-    */
+    /* ---------------------------------------------------------
+       BUILD GAME MAP
+    --------------------------------------------------------- */
 
     const gameMap = {};
 
+    games.forEach((game, gameIndex) => {
 
-    games.forEach(game => {
+      let position = null;
 
-      let position =
-        null;
+      if (Number.isInteger(Number(game.position))) {
+        position = Number(game.position);
+      }
 
+      if (position === null) {
+        const keys = Object.keys(game);
 
-      /*
-        -----------------------------------------------
-        FORMAT 1
-        afterPage1 / afterPage2 / afterPage3
-        -----------------------------------------------
-      */
-
-      Object.keys(game).forEach(key => {
-
-        if (
-          key.startsWith(
-            "afterPage"
-          )
-        ) {
-
-          const pageNumber =
-            Number(
-              key.substring(
-                "afterPage".length
-              )
-            );
-
-
-          const enabled =
-            Number(
-              game[key]
-            );
-
+        for (const key of keys) {
+          const match =
+            key.match(/^afterPage(\d+)$/i);
 
           if (
-            Number.isInteger(
-              pageNumber
-            ) &&
-            pageNumber >= 1 &&
-            enabled === 1
+            match &&
+            (
+              game[key] === true ||
+              game[key] === 1 ||
+              game[key] === "1" ||
+              game[key] === "true"
+            )
           ) {
-
-            position =
-              pageNumber;
-
+            position = Number(match[1]);
+            break;
           }
-
         }
-
-      });
-
-
-      /*
-        -----------------------------------------------
-        FORMAT 2
-        position
-        -----------------------------------------------
-      */
+      }
 
       if (
         position === null &&
-        game.position !== undefined
+        Number.isInteger(
+          Number(game.afterPage)
+        )
       ) {
-
-        const oldPosition =
-          Number(
-            game.position
-          );
-
-
-        if (
-          Number.isInteger(
-            oldPosition
-          )
-        ) {
-
-          position =
-            oldPosition;
-
-        }
-
+        position =
+          Number(game.afterPage);
       }
 
-
-      /*
-        -----------------------------------------------
-        SAVE VALID GAME
-        -----------------------------------------------
-      */
+      if (position === null) {
+        position =
+          gameIndex + 1;
+      }
 
       if (
-        Number.isInteger(
-          position
-        ) &&
         position >= 1 &&
         position <= totalParagraphs
       ) {
-
         gameMap[position] =
           game;
-
       }
 
     });
 
 
-    /*
-      ---------------------------------------------------------
-      BUILD BOOK PAGES
-      ---------------------------------------------------------
-
-      Example:
-
-      paragraph 1
-      game after page 1
-
-      paragraph 2
-      game after page 2
-
-      remaining paragraphs
-      final quiz
-    */
+    /* ---------------------------------------------------------
+       BUILD BOOK PAGES
+    --------------------------------------------------------- */
 
     const pages = [];
 
-
-    let currentParagraphs =
-      [];
-
+    let currentParagraphs = [];
 
     for (
       let i = 1;
@@ -732,21 +557,12 @@
     ) {
 
       currentParagraphs.push({
-
-        number:
-          i,
-
-        text:
-          paragraphs[
-            i - 1
-          ]
-
+        number: i,
+        text: paragraphs[i - 1]
       });
 
 
-      if (
-        gameMap[i]
-      ) {
+      if (gameMap[i]) {
 
         pages.push({
 
@@ -761,62 +577,21 @@
 
         });
 
-
-        currentParagraphs =
-          [];
+        currentParagraphs = [];
 
       }
 
     }
 
 
-    /*
-      Add remaining paragraphs
-      to the final page.
-    */
-
-  if (
-  currentParagraphs.length > 0
-) {
-
-  pages.push({
-
-    paragraphs:
-      currentParagraphs,
-
-    game:
-      null,
-
-    gamePosition:
-      null
-
-  });
-
-}
-
-
-/* DEBUG */
-
-console.log("========== PAGE DEBUG ==========");
-console.log("TOTAL PARAGRAPHS:", totalParagraphs);
-console.log("GAMES:", games);
-console.log("GAME MAP:", gameMap);
-console.log("PAGES CREATED:", pages.length);
-console.log("PAGES DATA:", pages);
-console.log("===============================");
-
-
-    /*
-      Safety fallback
-    */
-
     if (
-      pages.length === 0
+      currentParagraphs.length > 0
     ) {
 
       pages.push({
 
-        paragraphs: [],
+        paragraphs:
+          currentParagraphs,
 
         game:
           null,
@@ -829,11 +604,22 @@ console.log("===============================");
     }
 
 
-    /*
-      ---------------------------------------------------------
-      RENDER BOOK
-      ---------------------------------------------------------
-    */
+    if (
+      pages.length === 0
+    ) {
+
+      pages.push({
+
+        paragraphs: [],
+
+        game: null,
+
+        gamePosition: null
+
+      });
+
+    }
+
 
     document.querySelector(
       "#app"
@@ -855,7 +641,6 @@ console.log("===============================");
 
           </div>
 
-
           <div class="progress-track">
 
             <div
@@ -867,7 +652,6 @@ console.log("===============================");
           </div>
 
         </div>
-
 
         <div class="points">
           +0 points
@@ -922,7 +706,6 @@ console.log("===============================");
                               NEWSQUEST
                             </div>
 
-
                             <div class="nq-page-number">
 
                               ${
@@ -954,7 +737,6 @@ console.log("===============================");
 
                                 </div>
 
-
                                 <h1 class="nq-title">
 
                                   ${escapeHTML(
@@ -962,7 +744,6 @@ console.log("===============================");
                                   )}
 
                                 </h1>
-
 
                                 ${
                                   article.image
@@ -1040,21 +821,17 @@ console.log("===============================");
                                   class="nq-game-break"
                                 >
 
-                                  <div
-                                    class="nq-game-line"
-                                  ></div>
+                                  <div class="nq-game-line"></div>
 
-
-                                  <div
-                                    class="nq-game-label"
-                                  >
+                                  <div class="nq-game-label">
                                     READER CHALLENGE
                                   </div>
 
-
                                   <div
                                     class="nq-game-wrapper interactive-game"
-                                    data-game-position="${page.gamePosition}"
+                                    data-game-position="${
+                                      page.gamePosition
+                                    }"
                                   >
 
                                     ${renderReaderGame(
@@ -1081,17 +858,11 @@ console.log("===============================");
                                   class="nq-final-action"
                                 >
 
-                                  <div
-                                    class="nq-game-line"
-                                  ></div>
+                                  <div class="nq-game-line"></div>
 
-
-                                  <div
-                                    class="nq-game-label"
-                                  >
+                                  <div class="nq-game-label">
                                     ARTICLE COMPLETE
                                   </div>
-
 
                                   <button
                                     id="begin-quiz"
@@ -1111,18 +882,14 @@ console.log("===============================");
                           <div class="nq-page-footer">
 
                             <span>
-
                               ${
                                 pageIndex === 0
                                   ? "THE DAILY STORY"
                                   : "STORY CONTINUES"
                               }
-
                             </span>
 
-
                             <span>
-
                               ${
                                 String(
                                   pageIndex + 1
@@ -1131,11 +898,9 @@ console.log("===============================");
                                   "0"
                                 )
                               }
-
                             </span>
 
                           </div>
-
 
                         </div>
 
@@ -1184,15 +949,11 @@ console.log("===============================");
     `;
 
 
-    /*
-      ---------------------------------------------------------
-      BOOK STATE
-      ---------------------------------------------------------
-    */
+    /* ---------------------------------------------------------
+       BOOK STATE
+    --------------------------------------------------------- */
 
-    let currentPage =
-      0;
-
+    let currentPage = 0;
 
     const pageElements =
       Array.from(
@@ -1201,30 +962,25 @@ console.log("===============================");
         )
       );
 
-
     const pageLabel =
       document.querySelector(
         "#book-page-label"
       );
-
 
     const progress =
       document.querySelector(
         "#book-progress"
       );
 
-
     const previousButton =
       document.querySelector(
         "#book-prev"
       );
 
-
     const nextButton =
       document.querySelector(
         "#book-next"
       );
-
 
     const bookArea =
       document.querySelector(
@@ -1236,14 +992,13 @@ console.log("===============================");
       new Set([0]);
 
 
-    /*
-      ---------------------------------------------------------
-      RENDER CURRENT PAGE
-      ---------------------------------------------------------
-    */
+    /* ---------------------------------------------------------
+       RENDER CURRENT PAGE
+    --------------------------------------------------------- */
 
     function renderBookPage(
-      pageIndex
+      pageIndex,
+      direction = "next"
     ) {
 
       if (
@@ -1384,11 +1139,46 @@ console.log("===============================");
     }
 
 
-    /*
-      ---------------------------------------------------------
-      NAVIGATION
-      ---------------------------------------------------------
-    */
+    /* ---------------------------------------------------------
+       UNLOCK NEXT PAGE
+    --------------------------------------------------------- */
+
+    function unlockNextPage() {
+
+      const nextPage =
+        currentPage + 1;
+
+
+      if (
+        nextPage <
+        pageElements.length
+      ) {
+
+        unlockedPages.add(
+          nextPage
+        );
+
+
+        setTimeout(
+          () => {
+
+            renderBookPage(
+              nextPage,
+              "next"
+            );
+
+          },
+          350
+        );
+
+      }
+
+    }
+
+
+    /* ---------------------------------------------------------
+       NAVIGATION
+    --------------------------------------------------------- */
 
     previousButton.addEventListener(
       "click",
@@ -1399,7 +1189,8 @@ console.log("===============================");
         ) {
 
           renderBookPage(
-            currentPage - 1
+            currentPage - 1,
+            "previous"
           );
 
         }
@@ -1418,14 +1209,15 @@ console.log("===============================");
 
         if (
           nextPage <
-            pageElements.length &&
+          pageElements.length &&
           unlockedPages.has(
             nextPage
           )
         ) {
 
           renderBookPage(
-            nextPage
+            nextPage,
+            "next"
           );
 
         }
@@ -1434,14 +1226,15 @@ console.log("===============================");
     );
 
 
-    /*
-      ---------------------------------------------------------
-      SWIPE SUPPORT
-      ---------------------------------------------------------
-    */
+    /* ---------------------------------------------------------
+       SWIPE SUPPORT
+    --------------------------------------------------------- */
 
-    let touchStartX = 0;
-    let touchStartY = 0;
+    let touchStartX =
+      0;
+
+    let touchStartY =
+      0;
 
 
     bookArea.addEventListener(
@@ -1451,10 +1244,8 @@ console.log("===============================");
         const touch =
           event.changedTouches[0];
 
-
         touchStartX =
           touch.clientX;
-
 
         touchStartY =
           touch.clientY;
@@ -1473,11 +1264,9 @@ console.log("===============================");
         const touch =
           event.changedTouches[0];
 
-
         const deltaX =
           touch.clientX -
           touchStartX;
-
 
         const deltaY =
           touch.clientY -
@@ -1485,9 +1274,10 @@ console.log("===============================");
 
 
         if (
-          Math.abs(deltaX) < 60 ||
           Math.abs(deltaX) <
-            Math.abs(deltaY)
+          60 ||
+          Math.abs(deltaX) <
+          Math.abs(deltaY)
         ) {
 
           return;
@@ -1510,7 +1300,8 @@ console.log("===============================");
           ) {
 
             renderBookPage(
-              nextPage
+              nextPage,
+              "next"
             );
 
           }
@@ -1528,7 +1319,8 @@ console.log("===============================");
           ) {
 
             renderBookPage(
-              previousPage
+              previousPage,
+              "previous"
             );
 
           }
@@ -1542,11 +1334,9 @@ console.log("===============================");
     );
 
 
-    /*
-      ---------------------------------------------------------
-      MOUSE / TRACKPAD SWIPE
-      ---------------------------------------------------------
-    */
+    /* ---------------------------------------------------------
+       MOUSE / TRACKPAD SWIPE
+    --------------------------------------------------------- */
 
     let pointerStartX =
       0;
@@ -1573,7 +1363,8 @@ console.log("===============================");
 
 
         if (
-          Math.abs(deltaX) < 70
+          Math.abs(deltaX) <
+          70
         ) {
 
           return;
@@ -1596,7 +1387,8 @@ console.log("===============================");
           ) {
 
             renderBookPage(
-              nextPage
+              nextPage,
+              "next"
             );
 
           }
@@ -1614,7 +1406,8 @@ console.log("===============================");
           ) {
 
             renderBookPage(
-              previousPage
+              previousPage,
+              "previous"
             );
 
           }
@@ -1625,11 +1418,9 @@ console.log("===============================");
     );
 
 
-    /*
-      ---------------------------------------------------------
-      GAME BUTTONS
-      ---------------------------------------------------------
-    */
+    /* ---------------------------------------------------------
+       GAME BUTTONS
+    --------------------------------------------------------- */
 
     document
       .querySelectorAll(
@@ -1715,21 +1506,13 @@ console.log("===============================");
               }
 
 
-              /*
-                CORRECT
-              */
-
               if (
                 userAnswer ===
                 correctAnswer
               ) {
 
                 showConfetti();
-
-
-                playSound(
-                  "correct.mp3"
-                );
+                playSound("correct.mp3");
 
 
                 message.innerHTML =
@@ -1742,7 +1525,6 @@ console.log("===============================");
                 input.disabled =
                   true;
 
-
                 button.disabled =
                   true;
 
@@ -1753,9 +1535,7 @@ console.log("===============================");
                   );
 
 
-                if (
-                  pageElement
-                ) {
+                if (pageElement) {
 
                   const pageIndex =
                     Number(
@@ -1786,7 +1566,6 @@ console.log("===============================");
                       nextButton.disabled =
                         false;
 
-
                       nextButton.textContent =
                         "Turn Page →";
 
@@ -1798,17 +1577,9 @@ console.log("===============================");
 
               }
 
-
-              /*
-                WRONG
-              */
-
               else {
 
-                playSound(
-                  "wrong.mp3"
-                );
-
+                playSound("wrong.mp3");
 
                 message.innerHTML =
                   setMessage(
@@ -1824,11 +1595,9 @@ console.log("===============================");
       );
 
 
-    /*
-      ---------------------------------------------------------
-      FINAL QUIZ BUTTON
-      ---------------------------------------------------------
-    */
+    /* ---------------------------------------------------------
+       FINAL QUIZ BUTTON
+    --------------------------------------------------------- */
 
     const quizButton =
       document.querySelector(
@@ -1842,10 +1611,7 @@ console.log("===============================");
         "click",
         () => {
 
-          playSound(
-            "proceed.mp3"
-          );
-
+          playSound("proceed.mp3");
 
           renderQuiz(
             article
@@ -1856,12 +1622,6 @@ console.log("===============================");
 
     }
 
-
-    /*
-      ---------------------------------------------------------
-      START
-      ---------------------------------------------------------
-    */
 
     renderBookPage(
       0
@@ -1886,9 +1646,9 @@ console.log("===============================");
     }
 
 
-    /*
-      JUMBLED WORDS
-    */
+    /* ---------------------------------------------------------
+       JUMBLED WORDS
+    --------------------------------------------------------- */
 
     if (
       game.type ===
@@ -1955,9 +1715,9 @@ console.log("===============================");
     }
 
 
-    /*
-      4 PICS 1 WORD
-    */
+    /* ---------------------------------------------------------
+       4 PICS 1 WORD
+    --------------------------------------------------------- */
 
     if (
       game.type ===
@@ -2044,9 +1804,9 @@ console.log("===============================");
     }
 
 
-    /*
-      MINI CROSSWORD
-    */
+    /* ---------------------------------------------------------
+       MINI CROSSWORD
+    --------------------------------------------------------- */
 
     if (
       game.type ===
@@ -2222,10 +1982,12 @@ console.log("===============================");
       )
       .addEventListener(
         "click",
-        () =>
+        () => {
+          playSound("proceed.mp3");
           renderQuiz(
             article
-          )
+          );
+        }
       );
 
   }
@@ -2629,13 +2391,8 @@ console.log("===============================");
       );
 
 
-      playSound(
-        "complete.mp3"
-      );
-
-
+      playSound("complete.mp3");
       showConfetti();
-
 
       await renderResult({
 
@@ -2649,9 +2406,7 @@ console.log("===============================");
 
     } catch (error) {
 
-      console.error(
-        error
-      );
+      console.error(error);
 
 
       if (
@@ -2871,16 +2626,14 @@ console.log("===============================");
                 index + 1;
 
 
-              let medal =
-                "";
+              let medal = "";
 
 
               if (
                 rank === 1
               ) {
 
-                medal =
-                  "🥇";
+                medal = "🥇";
 
               }
 
@@ -2889,8 +2642,7 @@ console.log("===============================");
                 rank === 2
               ) {
 
-                medal =
-                  "🥈";
+                medal = "🥈";
 
               }
 
@@ -2899,8 +2651,7 @@ console.log("===============================");
                 rank === 3
               ) {
 
-                medal =
-                  "🥉";
+                medal = "🥉";
 
               }
 
