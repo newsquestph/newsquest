@@ -1222,9 +1222,84 @@
     const formData = new FormData(event.target);
     const message = document.querySelector("#quiz-message");
 
-  if (!session?.code || !session?.articleId) {
-  message.innerHTML = setMessage(
-    "Your session has expired. Please return to the start and enter your code again."
-  );
-  return;
-}
+    if (!session?.code || !session?.articleId) {
+      message.innerHTML = setMessage(
+        "Your session has expired. Please return to the start and enter your code again."
+      );
+      return;
+    }
+
+    const questions = Array.isArray(article.questions)
+      ? article.questions
+      : [];
+
+    if (questions.length !== 5) {
+      message.innerHTML = setMessage(
+        "This quiz is not configured correctly. Please contact the researcher."
+      );
+      return;
+    }
+
+    const answers = questions.map((question, index) => {
+      const selected = formData.get(`question-${index}`);
+      return selected === null ? null : Number(selected);
+    });
+
+    if (answers.some(answer => answer === null || !Number.isInteger(answer))) {
+      message.innerHTML = setMessage(
+        "Please answer all five questions before submitting."
+      );
+      return;
+    }
+
+    const submitButton = event.target.querySelector(
+      'button[type="submit"]'
+    );
+
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Submitting...";
+    }
+
+    try {
+      const correctAnswers = questions.map(question =>
+        Number(question.answer)
+      );
+
+      const score = answers.reduce((total, answer, index) => {
+        return total + (answer === correctAnswers[index] ? 1 : 0);
+      }, 0);
+
+      const points = score * 20;
+
+      /*
+       * IMPORTANT:
+       * This section only calculates the score.
+       * Your existing Firebase submission code must still save
+       * the respondent's answers and result to the database.
+       */
+
+      message.innerHTML = setMessage(
+        `Quiz checked: ${score}/5 correct (${points} points).`
+      );
+
+      console.log("Quiz result:", {
+        articleId: session.articleId,
+        answers,
+        score,
+        points
+      });
+
+    } catch (error) {
+      console.error("Quiz submission error:", error);
+
+      message.innerHTML = setMessage(
+        "Your response could not be submitted. Please try again."
+      );
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Submit quiz";
+      }
+    }
+  }
