@@ -1,3 +1,4 @@
+
 (async () => {
   const [{ initializeApp }, firebase] = await Promise.all([
     import("https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js"),
@@ -5,8 +6,16 @@
   ]);
 
   const {
-    getFirestore, doc, getDoc, getDocs, collection, query,
-    orderBy, limit, runTransaction, serverTimestamp
+    getFirestore,
+    doc,
+    getDoc,
+    getDocs,
+    collection,
+    query,
+    orderBy,
+    limit,
+    runTransaction,
+    serverTimestamp
   } = firebase;
 
   /* =========================================================
@@ -50,31 +59,309 @@
   function normalizeAnswer(value) {
     return String(value ?? "")
       .normalize("NFKC")
-      .replace(/\s+/g, "")
       .trim()
+      .replace(/\s+/g, " ")
       .toLocaleLowerCase();
   }
 
   function getSession() {
     try {
-      return JSON.parse(sessionStorage.getItem("newsquest_session") || "null");
+      return JSON.parse(
+        sessionStorage.getItem("newsquest_session") || "null"
+      );
     } catch {
       return null;
     }
   }
 
   function saveSession(session) {
-    sessionStorage.setItem("newsquest_session", JSON.stringify(session));
+    sessionStorage.setItem(
+      "newsquest_session",
+      JSON.stringify(session)
+    );
   }
 
+  function getAppRoot() {
+    return document.querySelector("#app");
+  }
+
+  function injectGameStyles() {
+    if (document.querySelector("#newsquest-game-styles")) return;
+
+    const style = document.createElement("style");
+    style.id = "newsquest-game-styles";
+
+    style.textContent = `
+      .nq-interactive-game {
+        width: 100%;
+        max-width: 620px;
+        margin: 18px auto;
+      }
+
+      .nq-interactive-game .game-box {
+        box-sizing: border-box;
+        padding: 22px;
+        border: 1px solid #d9e5d4;
+        border-radius: 18px;
+        background: #f8fbf5;
+        color: #243c2a;
+        box-shadow: 0 8px 24px rgba(35, 70, 42, .07);
+      }
+
+      .nq-interactive-game .game-box h3 {
+        margin: 8px 0;
+        color: #205b35;
+      }
+
+      .nq-interactive-game .game-input {
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 46px;
+        margin: 14px 0 10px;
+        padding: 12px 14px;
+        border: 1px solid #b9cbb8;
+        border-radius: 10px;
+        background: #fff;
+        color: #203525;
+        font-size: 16px;
+      }
+
+      .nq-interactive-game .game-submit {
+        min-height: 44px;
+        margin-top: 5px;
+      }
+
+      .nq-interactive-game button:disabled {
+        cursor: not-allowed;
+        opacity: .65;
+      }
+
+      .nq-game-letter-bank {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 7px;
+        margin: 18px 0;
+      }
+
+      .nq-game-letter {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 39px;
+        height: 43px;
+        border: 1px solid #b9cdb6;
+        border-radius: 8px;
+        background: #e8f1e4;
+        color: #245433;
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .four-pics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin: 18px 0;
+      }
+
+      .four-pics-grid .game-image,
+      .four-pics-grid .nq-image-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        border: 1px solid #d5e0d1;
+        border-radius: 12px;
+        background: #e8eee4;
+        color: #526753;
+        object-fit: cover;
+      }
+
+      .nq-crossword-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 20px;
+        margin-top: 18px;
+      }
+
+      .nq-crossword-grid-wrap {
+        width: 100%;
+        overflow-x: auto;
+        padding: 5px 0 12px;
+      }
+
+      .nq-crossword-grid {
+        display: grid;
+        width: max-content;
+        margin: 0 auto;
+        gap: 2px;
+      }
+
+      .nq-crossword-cell {
+        position: relative;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border: 1px solid #c5d3c0;
+        border-radius: 3px;
+        background: #fff;
+      }
+
+      .nq-crossword-cell.is-block {
+        border-color: #24462e;
+        background: #24462e;
+      }
+
+      .nq-crossword-cell.is-start {
+        border-color: #7c9d75;
+        background: #eef5e9;
+      }
+
+      .nq-crossword-number {
+        position: absolute;
+        top: 1px;
+        left: 2px;
+        z-index: 1;
+        font-size: 9px;
+        line-height: 1;
+        color: #48624b;
+      }
+
+      .nq-crossword-letter {
+        font-size: 16px;
+        font-weight: 800;
+        color: #245433;
+      }
+
+      .nq-crossword-clues {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 15px;
+      }
+
+      .nq-crossword-clue-group h4 {
+        margin: 0 0 8px;
+        color: #205b35;
+      }
+
+      .nq-crossword-clue {
+        margin: 0 0 12px;
+        padding: 12px;
+        border: 1px solid #dce6d8;
+        border-radius: 10px;
+        background: #fff;
+      }
+
+      .nq-crossword-clue label {
+        display: block;
+        margin-bottom: 7px;
+        font-weight: 650;
+        line-height: 1.45;
+      }
+
+      .nq-crossword-clue input {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 42px;
+        padding: 9px 11px;
+        border: 1px solid #b9cbb8;
+        border-radius: 8px;
+        font-size: 16px;
+      }
+
+      .nq-crossword-clue input:disabled {
+        background: #edf5e9;
+        color: #245433;
+        font-weight: 700;
+      }
+
+      .nq-crossword-status {
+        margin-top: 12px;
+        font-size: 13px;
+        color: #526753;
+      }
+
+      .nq-crossword-status.is-correct {
+        color: #20723a;
+        font-weight: 700;
+      }
+
+      .nq-crossword-status.is-wrong {
+        color: #a33a2d;
+      }
+
+      .nq-crossword-empty {
+        padding: 12px;
+        border-radius: 8px;
+        background: #fff5df;
+        color: #76551b;
+      }
+
+      .nq-game-message {
+        margin-top: 12px;
+      }
+
+      @media (min-width: 600px) {
+        .nq-crossword-layout {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          align-items: start;
+        }
+
+        .nq-crossword-cell {
+          width: 36px;
+          height: 36px;
+        }
+      }
+
+      @media (max-width: 420px) {
+        .nq-interactive-game .game-box {
+          padding: 15px;
+        }
+
+        .nq-crossword-cell {
+          width: 29px;
+          height: 29px;
+        }
+
+        .nq-crossword-letter {
+          font-size: 13px;
+        }
+
+        .nq-game-letter {
+          width: 32px;
+          height: 37px;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  /* =========================================================
+     FIRESTORE ARTICLE
+  ========================================================= */
+
   async function getArticle(articleId) {
-    const snapshot = await getDoc(doc(db, "articles", articleId));
+    const snapshot = await getDoc(
+      doc(db, "articles", articleId)
+    );
 
     if (!snapshot.exists()) {
       throw new Error("ARTICLE_NOT_FOUND");
     }
 
-    return { articleId: snapshot.id, ...snapshot.data() };
+    return {
+      articleId: snapshot.id,
+      ...snapshot.data()
+    };
   }
 
   function showConfetti() {
@@ -88,174 +375,28 @@
       piece.style.animationDelay = Math.random() * 0.25 + "s";
       piece.style.transform = `rotate(${Math.random() * 360}deg)`;
       piece.style.background = [
-        "#2e7d32", "#66bb6a", "#f9c74f", "#ffffff", "#81c784"
+        "#2e7d32",
+        "#66bb6a",
+        "#f9c74f",
+        "#ffffff",
+        "#81c784"
       ][Math.floor(Math.random() * 5)];
+
       container.appendChild(piece);
     }
 
     document.body.appendChild(container);
+
     setTimeout(() => container.remove(), 1600);
   }
 
   function playSound(file) {
     const audio = new Audio(file);
     audio.volume = 1;
-    audio.play().catch(error => console.log("Sound blocked:", error));
-  }
 
-  /* =========================================================
-     GAME STYLES
-     Automatically adds the letter-tile animations.
-  ========================================================= */
-
-  function injectGameStyles() {
-    if (document.querySelector("#newsquest-game-styles")) return;
-
-    const style = document.createElement("style");
-    style.id = "newsquest-game-styles";
-
-    style.textContent = `
-      .nq-letter-game { margin-top: 16px; }
-
-      .nq-answer-slots, .nq-letter-bank {
-        display:flex;
-        flex-wrap:wrap;
-        justify-content:center;
-        align-items:center;
-        gap:7px;
-        margin:16px 0;
-      }
-
-      .nq-answer-slot, .nq-letter-tile {
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        width:39px;
-        height:43px;
-        padding:0;
-        border:2px solid #b9cdb6;
-        border-radius:9px;
-        font-size:18px;
-        font-weight:800;
-        transition:transform .18s ease,background .18s ease,
-                   border-color .18s ease,opacity .18s ease;
-      }
-
-      .nq-answer-slot {
-        background:#fff;
-        color:#245433;
-        cursor:pointer;
-      }
-
-      .nq-answer-slot.filled {
-        background:#e7f3df;
-        border-color:#43834a;
-        animation:nqLetterPop .2s ease-out;
-      }
-
-      .nq-letter-tile {
-        background:#e8f1e4;
-        color:#245433;
-        cursor:pointer;
-        box-shadow:0 3px 0 #c6d8c0;
-      }
-
-      .nq-letter-tile:hover:not(:disabled) {
-        transform:translateY(-3px);
-        background:#d4e9ca;
-      }
-
-      .nq-letter-tile:active:not(:disabled) {
-        transform:scale(.92);
-      }
-
-      .nq-letter-tile.used {
-        opacity:.3;
-        transform:scale(.88);
-      }
-
-      .nq-letter-tile:disabled,
-      .nq-answer-slot:disabled {
-        cursor:default;
-      }
-
-      .nq-letter-help {
-        margin:8px 0;
-        color:#617362;
-        font-size:13px;
-        text-align:center;
-      }
-
-      .nq-reset-letters {
-        display:block;
-        margin:10px auto;
-        padding:9px 15px;
-        border:1px solid #b9cdb6;
-        border-radius:8px;
-        background:#fff;
-        color:#245433;
-        cursor:pointer;
-      }
-
-      .nq-reset-letters:hover:not(:disabled) {
-        background:#edf5e9;
-      }
-
-      .nq-crossword-word {
-        margin:14px 0;
-        padding:14px;
-        border:1px solid #dce6d8;
-        border-radius:12px;
-        background:#fff;
-      }
-
-      .nq-crossword-word h4 {
-        margin:0 0 8px;
-        color:#205b35;
-      }
-
-      .nq-crossword-word .nq-answer-slot {
-        width:32px;
-        height:37px;
-        font-size:15px;
-      }
-
-      .nq-crossword-word .nq-letter-tile {
-        width:34px;
-        height:38px;
-        font-size:16px;
-      }
-
-      .nq-crossword-status {
-        min-height:20px;
-        margin-top:8px;
-        font-size:13px;
-        font-weight:700;
-      }
-
-      .nq-crossword-status.is-correct { color:#28743b; }
-      .nq-crossword-status.is-wrong { color:#b42318; }
-
-      .nq-game-feedback {
-        margin-top:12px;
-      }
-
-      @keyframes nqLetterPop {
-        0% { transform:scale(.7); }
-        70% { transform:scale(1.12); }
-        100% { transform:scale(1); }
-      }
-
-      @media(max-width:420px) {
-        .nq-answer-slot,.nq-letter-tile {
-          width:32px;
-          height:37px;
-          font-size:16px;
-        }
-      }
-    `;
-
-    document.head.appendChild(style);
+    audio.play().catch(error => {
+      console.log("Sound blocked:", error);
+    });
   }
 
   /* =========================================================
@@ -263,11 +404,13 @@
   ========================================================= */
 
   function renderWelcome() {
-    document.querySelector("#app").innerHTML = `
+    getAppRoot().innerHTML = `
       <section class="welcome card">
         <div class="welcome-copy">
           <div class="eyebrow">Interactive research reading</div>
+
           <h1>Read smarter. Remember more.</h1>
+
           <p class="lead">
             NewsQuest is a gamified news-reading activity.
             Your respondent code automatically assigns you
@@ -277,8 +420,15 @@
           <form id="start-form">
             <div class="form-group">
               <label for="respondent-code">Respondent code</label>
-              <input id="respondent-code" name="code" required
-                autocomplete="off" placeholder="Example: SET1-001">
+
+              <input
+                id="respondent-code"
+                name="code"
+                required
+                autocomplete="off"
+                placeholder="Example: SET1-001"
+              >
+
               <p class="small">
                 Enter the unique code provided by the researcher.
               </p>
@@ -305,7 +455,8 @@
       </section>
     `;
 
-    document.querySelector("#start-form")
+    document
+      .querySelector("#start-form")
       .addEventListener("submit", startRespondent);
   }
 
@@ -316,17 +467,23 @@
   async function startRespondent(event) {
     event.preventDefault();
 
-    const code = document.querySelector("#respondent-code")
-      .value.trim().toUpperCase();
+    const code = document
+      .querySelector("#respondent-code")
+      .value
+      .trim()
+      .toUpperCase();
 
     const message = document.querySelector("#start-message");
 
     try {
       message.innerHTML = setMessage(
-        "Checking your respondent code...", "notice"
+        "Checking your respondent code...",
+        "notice"
       );
 
-      const codeSnapshot = await getDoc(doc(db, "respondentCodes", code));
+      const codeSnapshot = await getDoc(
+        doc(db, "respondentCodes", code)
+      );
 
       if (!codeSnapshot.exists()) {
         message.innerHTML = setMessage(
@@ -353,7 +510,10 @@
 
       const article = await getArticle(record.articleId);
 
-      if (!Array.isArray(article.questions) || article.questions.length !== 5) {
+      if (
+        !Array.isArray(article.questions) ||
+        article.questions.length !== 5
+      ) {
         message.innerHTML = setMessage(
           "The assigned article does not have exactly five questions."
         );
@@ -370,6 +530,7 @@
       renderArticle(article);
     } catch (error) {
       console.error(error);
+
       message.innerHTML = setMessage(
         "Something went wrong while connecting to NewsQuest."
       );
@@ -383,7 +544,10 @@
   function renderArticle(article) {
     const session = getSession();
 
-    if (Array.isArray(article.paragraphs) && article.paragraphs.length > 0) {
+    if (
+      Array.isArray(article.paragraphs) &&
+      article.paragraphs.length > 0
+    ) {
       renderArticleWithGames(article);
       return;
     }
@@ -392,7 +556,7 @@
   }
 
   /* =========================================================
-     NEW ARTICLE FORMAT + BOOK PAGES
+     ARTICLE WITH GAMES
   ========================================================= */
 
   function renderArticleWithGames(article) {
@@ -400,9 +564,15 @@
 
     const session = getSession();
     const paragraphs = Array.isArray(article.paragraphs)
-      ? article.paragraphs : [];
-    const games = Array.isArray(article.games) ? article.games : [];
+      ? article.paragraphs
+      : [];
+    const games = Array.isArray(article.games)
+      ? article.games
+      : [];
     const totalParagraphs = paragraphs.length;
+
+    /* BUILD GAME MAP */
+
     const gameMap = {};
 
     games.forEach((game, gameIndex) => {
@@ -421,12 +591,15 @@
         for (const key of Object.keys(game)) {
           const match = key.match(/^afterPage(\d+)$/i);
 
-          if (match && (
-            game[key] === true ||
-            game[key] === 1 ||
-            game[key] === "1" ||
-            game[key] === "true"
-          )) {
+          if (
+            match &&
+            (
+              game[key] === true ||
+              game[key] === 1 ||
+              game[key] === "1" ||
+              game[key] === "true"
+            )
+          ) {
             position = Number(match[1]);
             break;
           }
@@ -436,23 +609,35 @@
       if (
         position === null &&
         game.afterPage !== undefined &&
+        game.afterPage !== null &&
+        game.afterPage !== "" &&
         Number.isInteger(Number(game.afterPage))
       ) {
         position = Number(game.afterPage);
       }
 
-      if (position === null) position = gameIndex + 1;
+      if (position === null) {
+        position = gameIndex + 1;
+      }
 
-      if (position >= 1 && position <= totalParagraphs) {
+      if (
+        position >= 1 &&
+        position <= totalParagraphs
+      ) {
         gameMap[position] = game;
       }
     });
+
+    /* BUILD BOOK PAGES */
 
     const pages = [];
     let currentParagraphs = [];
 
     for (let i = 1; i <= totalParagraphs; i++) {
-      currentParagraphs.push({ number: i, text: paragraphs[i - 1] });
+      currentParagraphs.push({
+        number: i,
+        text: paragraphs[i - 1]
+      });
 
       if (gameMap[i]) {
         pages.push({
@@ -460,6 +645,7 @@
           game: gameMap[i],
           gamePosition: i
         });
+
         currentParagraphs = [];
       }
     }
@@ -473,20 +659,30 @@
     }
 
     if (pages.length === 0) {
-      pages.push({ paragraphs: [], game: null, gamePosition: null });
+      pages.push({
+        paragraphs: [],
+        game: null,
+        gamePosition: null
+      });
     }
 
-    document.querySelector("#app").innerHTML = `
+    getAppRoot().innerHTML = `
       <div class="topbar">
         <div class="progress-wrap">
           <div class="progress-label">
             <span>NewsQuest</span>
             <span id="book-page-label">Page 1 / ${pages.length}</span>
           </div>
+
           <div class="progress-track">
-            <div id="book-progress" class="progress-fill" style="width:0%"></div>
+            <div
+              id="book-progress"
+              class="progress-fill"
+              style="width: 0%"
+            ></div>
           </div>
         </div>
+
         <div class="points">+0 points</div>
       </div>
 
@@ -497,8 +693,10 @@
               const isFirstPage = pageIndex === 0;
 
               return `
-                <section class="nq-page ${isFirstPage ? "nq-page-active" : ""}"
-                  data-page="${pageIndex}">
+                <section
+                  class="nq-page ${isFirstPage ? "nq-page-active" : ""}"
+                  data-page="${pageIndex}"
+                >
                   <div class="nq-page-inner">
                     <div class="nq-page-header">
                       <div class="nq-publication">NEWSQUEST</div>
@@ -507,51 +705,91 @@
                       </div>
                     </div>
 
-                    ${isFirstPage ? `
-                      <div class="nq-article-kicker">
-                        Set ${escapeHTML(session?.set || "")} · Assigned Reading
-                      </div>
-                      <h1 class="nq-title">${escapeHTML(article.title || "")}</h1>
-                      ${article.image ? `
-                        <img src="${escapeAttr(article.image)}"
-                          alt="${escapeAttr(article.title || "Article image")}"
-                          class="nq-hero-image">
-                      ` : ""}
-                    ` : `
-                      <div class="nq-continuation">STORY CONTINUES</div>
-                    `}
+                    ${
+                      isFirstPage
+                        ? `
+                          <div class="nq-article-kicker">
+                            Set ${escapeHTML(session?.set || "")}
+                            · Assigned Reading
+                          </div>
+
+                          <h1 class="nq-title">
+                            ${escapeHTML(article.title || "")}
+                          </h1>
+
+                          ${
+                            article.image
+                              ? `
+                                <img
+                                  src="${escapeAttr(article.image)}"
+                                  alt="${escapeAttr(article.title || "Article image")}"
+                                  class="nq-hero-image"
+                                >
+                              `
+                              : ""
+                          }
+                        `
+                        : `
+                          <div class="nq-continuation">
+                            STORY CONTINUES
+                          </div>
+                        `
+                    }
 
                     <div class="nq-story-content">
                       ${page.paragraphs.map((paragraph, paragraphIndex) => `
                         <p class="nq-paragraph ${
-                          paragraphIndex === 0 && isFirstPage ? "nq-dropcap" : ""
-                        }">${escapeHTML(paragraph.text)}</p>
+                          paragraphIndex === 0 && isFirstPage
+                            ? "nq-dropcap"
+                            : ""
+                        }">
+                          ${escapeHTML(paragraph.text)}
+                        </p>
                       `).join("")}
                     </div>
 
-                    ${page.game ? `
-                      <div class="nq-game-break">
-                        <div class="nq-game-line"></div>
-                        <div class="nq-game-label">READER CHALLENGE</div>
-                        <div class="nq-game-wrapper interactive-game"
-                          data-game-position="${page.gamePosition}">
-                          ${renderReaderGame(page.game)}
-                        </div>
-                      </div>
-                    ` : ""}
+                    ${
+                      page.game
+                        ? `
+                          <div class="nq-game-break">
+                            <div class="nq-game-line"></div>
+                            <div class="nq-game-label">READER CHALLENGE</div>
 
-                    ${!page.game && pageIndex === pages.length - 1 ? `
-                      <div id="final-reading-action" class="nq-final-action">
-                        <div class="nq-game-line"></div>
-                        <div class="nq-game-label">ARTICLE COMPLETE</div>
-                        <button id="begin-quiz" class="primary-btn" type="button">
-                          Proceed to Final Quiz →
-                        </button>
-                      </div>
-                    ` : ""}
+                            <div
+                              class="nq-game-wrapper interactive-game nq-interactive-game"
+                              data-game-position="${page.gamePosition}"
+                            >
+                              ${renderReaderGame(page.game)}
+                            </div>
+                          </div>
+                        `
+                        : ""
+                    }
+
+                    ${
+                      !page.game && pageIndex === pages.length - 1
+                        ? `
+                          <div id="final-reading-action" class="nq-final-action">
+                            <div class="nq-game-line"></div>
+                            <div class="nq-game-label">ARTICLE COMPLETE</div>
+
+                            <button
+                              id="begin-quiz"
+                              class="primary-btn"
+                              type="button"
+                            >
+                              Proceed to Final Quiz →
+                            </button>
+                          </div>
+                        `
+                        : ""
+                    }
 
                     <div class="nq-page-footer">
-                      <span>${pageIndex === 0 ? "THE DAILY STORY" : "STORY CONTINUES"}</span>
+                      <span>
+                        ${pageIndex === 0 ? "THE DAILY STORY" : "STORY CONTINUES"}
+                      </span>
+
                       <span>${String(pageIndex + 1).padStart(2, "0")}</span>
                     </div>
                   </div>
@@ -562,8 +800,14 @@
         </div>
 
         <div class="nq-book-navigation">
-          <button id="book-prev" class="nq-nav-button" type="button">← Previous</button>
-          <div class="nq-swipe-label">← Swipe to turn the page →</div>
+          <button id="book-prev" class="nq-nav-button" type="button">
+            ← Previous
+          </button>
+
+          <div class="nq-swipe-label">
+            ← Swipe to turn the page →
+          </div>
+
           <button id="book-next" class="nq-nav-button nq-nav-primary" type="button">
             Next →
           </button>
@@ -571,24 +815,39 @@
       </article>
     `;
 
+    /* BOOK STATE */
+
     let currentPage = 0;
 
-    const pageElements = Array.from(document.querySelectorAll(".nq-page"));
+    const pageElements = Array.from(
+      document.querySelectorAll(".nq-page")
+    );
+
     const pageLabel = document.querySelector("#book-page-label");
     const progress = document.querySelector("#book-progress");
     const previousButton = document.querySelector("#book-prev");
     const nextButton = document.querySelector("#book-next");
     const bookArea = document.querySelector("#book-page-area");
+
     const unlockedPages = new Set([0]);
 
     function renderBookPage(pageIndex) {
-      if (pageIndex < 0 || pageIndex >= pageElements.length) return;
-      if (!unlockedPages.has(pageIndex)) return;
+      if (
+        pageIndex < 0 ||
+        pageIndex >= pageElements.length ||
+        !unlockedPages.has(pageIndex)
+      ) {
+        return;
+      }
 
       currentPage = pageIndex;
 
       pageElements.forEach((page, index) => {
-        page.classList.remove("nq-page-active", "nq-page-left", "nq-page-right");
+        page.classList.remove(
+          "nq-page-active",
+          "nq-page-left",
+          "nq-page-right"
+        );
 
         if (index === currentPage) {
           page.classList.add("nq-page-active");
@@ -601,34 +860,47 @@
 
       const totalPages = pageElements.length;
 
-      pageLabel.textContent = `Page ${currentPage + 1} / ${totalPages}`;
-      progress.style.width = `${((currentPage + 1) / totalPages) * 100}%`;
+      pageLabel.textContent =
+        `Page ${currentPage + 1} / ${totalPages}`;
+
+      progress.style.width =
+        `${((currentPage + 1) / totalPages) * 100}%`;
+
       previousButton.disabled = currentPage === 0;
 
       const isLastPage = currentPage === totalPages - 1;
-      nextButton.textContent = isLastPage ? "Finished" : "Next →";
-
       const nextPage = currentPage + 1;
 
-      if (!isLastPage && !unlockedPages.has(nextPage)) {
+      if (isLastPage) {
+        nextButton.disabled = true;
+        nextButton.textContent = "Finished";
+      } else if (!unlockedPages.has(nextPage)) {
         nextButton.disabled = true;
         nextButton.textContent = "Complete challenge →";
       } else {
         nextButton.disabled = false;
+        nextButton.textContent = "Next →";
       }
     }
 
     previousButton.addEventListener("click", () => {
-      if (currentPage > 0) renderBookPage(currentPage - 1);
+      if (currentPage > 0) {
+        renderBookPage(currentPage - 1);
+      }
     });
 
     nextButton.addEventListener("click", () => {
       const nextPage = currentPage + 1;
 
-      if (nextPage < pageElements.length && unlockedPages.has(nextPage)) {
+      if (
+        nextPage < pageElements.length &&
+        unlockedPages.has(nextPage)
+      ) {
         renderBookPage(nextPage);
       }
     });
+
+    /* SWIPE SUPPORT */
 
     let touchStartX = 0;
     let touchStartY = 0;
@@ -644,37 +916,59 @@
       const deltaX = touch.clientX - touchStartX;
       const deltaY = touch.clientY - touchStartY;
 
-      if (Math.abs(deltaX) < 60 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+      if (
+        Math.abs(deltaX) < 60 ||
+        Math.abs(deltaX) < Math.abs(deltaY)
+      ) {
+        return;
+      }
 
       if (deltaX < 0) {
         const nextPage = currentPage + 1;
-        if (unlockedPages.has(nextPage)) renderBookPage(nextPage);
+
+        if (unlockedPages.has(nextPage)) {
+          renderBookPage(nextPage);
+        }
       } else if (currentPage > 0) {
         renderBookPage(currentPage - 1);
       }
     }, { passive: true });
 
+    /* MOUSE / TRACKPAD SWIPE */
+
     let pointerStartX = 0;
+    let pointerStartY = 0;
 
     bookArea.addEventListener("pointerdown", event => {
       pointerStartX = event.clientX;
+      pointerStartY = event.clientY;
     });
 
     bookArea.addEventListener("pointerup", event => {
+      if (event.pointerType === "touch") return;
+
       const deltaX = event.clientX - pointerStartX;
-      if (Math.abs(deltaX) < 70) return;
+      const deltaY = event.clientY - pointerStartY;
+
+      if (
+        Math.abs(deltaX) < 70 ||
+        Math.abs(deltaX) < Math.abs(deltaY)
+      ) {
+        return;
+      }
 
       if (deltaX < 0) {
         const nextPage = currentPage + 1;
-        if (unlockedPages.has(nextPage)) renderBookPage(nextPage);
+
+        if (unlockedPages.has(nextPage)) {
+          renderBookPage(nextPage);
+        }
       } else if (currentPage > 0) {
         renderBookPage(currentPage - 1);
       }
     });
 
-    /* ---------------------------------------------------------
-       GAME BUTTONS
-    --------------------------------------------------------- */
+    /* GAME ANSWER HANDLERS */
 
     document.querySelectorAll(".interactive-game").forEach(gameContainer => {
       const position = Number(gameContainer.dataset.gamePosition);
@@ -684,35 +978,18 @@
 
       const message = gameContainer.querySelector(".game-message");
       const button = gameContainer.querySelector(".game-submit");
-      const letterGame = gameContainer.querySelector("[data-letter-game]");
 
       if (!message || !button) return;
 
-      function markGameCorrect() {
-        showConfetti();
-        playSound("correct.mp3");
-
-        message.innerHTML = setMessage(
-          "Correct! Great job. You can continue reading.",
-          "success"
-        );
-
-        button.disabled = true;
-
-        gameContainer.querySelectorAll(
-          "input, .nq-letter-tile, .nq-answer-slot, .nq-reset-letters"
-        ).forEach(element => {
-          element.disabled = true;
-        });
-
+      function unlockGamePage() {
         const pageElement = gameContainer.closest(".nq-page");
         if (!pageElement) return;
 
         const pageIndex = Number(pageElement.dataset.page);
-        const nextPageIndex = pageIndex + 1;
+        const nextPage = pageIndex + 1;
 
-        if (nextPageIndex < pageElements.length) {
-          unlockedPages.add(nextPageIndex);
+        if (nextPage < pageElements.length) {
+          unlockedPages.add(nextPage);
 
           if (currentPage === pageIndex) {
             nextButton.disabled = false;
@@ -721,170 +998,52 @@
         }
       }
 
-      if (letterGame) {
-        function setupLetterGroup(group) {
-          const bank = group.querySelector("[data-letter-bank]");
-          const slotsContainer = group.querySelector("[data-answer-slots]");
+      function markGameCorrect() {
+        showConfetti();
+        playSound("correct.mp3");
 
-          if (!bank || !slotsContainer) return null;
+        message.innerHTML = setMessage(
+          "Correct! Great job. You can now continue reading.",
+          "success"
+        );
 
-          const tiles = Array.from(bank.querySelectorAll(".nq-letter-tile"));
-          const slots = Array.from(slotsContainer.querySelectorAll(".nq-answer-slot"));
-          const state = slots.map(() => null);
+        button.disabled = true;
 
-          tiles.forEach((tile, tileIndex) => {
-            tile.dataset.tileIndex = String(tileIndex);
-
-            tile.addEventListener("click", () => {
-              if (tile.disabled || tile.classList.contains("used")) return;
-
-              const emptyIndex = state.findIndex(value => value === null);
-              if (emptyIndex === -1) return;
-
-              state[emptyIndex] = tileIndex;
-
-              slots[emptyIndex].textContent = tile.dataset.letter;
-              slots[emptyIndex].classList.add("filled");
-              slots[emptyIndex].dataset.tileIndex = String(tileIndex);
-
-              tile.classList.add("used");
-              tile.disabled = true;
-            });
-          });
-
-          slots.forEach((slot, slotIndex) => {
-            slot.addEventListener("click", () => {
-              if (slot.disabled) return;
-
-              const tileIndex = state[slotIndex];
-              if (tileIndex === null || tileIndex === undefined) return;
-
-              const tile = tiles[tileIndex];
-
-              if (tile) {
-                tile.classList.remove("used");
-                tile.disabled = false;
-              }
-
-              state[slotIndex] = null;
-              slot.innerHTML = "&nbsp;";
-              slot.classList.remove("filled");
-              delete slot.dataset.tileIndex;
-            });
-          });
-
-          return {
-            group,
-            tiles,
-            slots,
-            state,
-
-            getAnswer() {
-              return state.map(tileIndex => {
-                if (tileIndex === null) return "";
-                return tiles[tileIndex]?.dataset.letter || "";
-              }).join("");
-            },
-
-            clear() {
-              state.fill(null);
-
-              slots.forEach(slot => {
-                slot.innerHTML = "&nbsp;";
-                slot.classList.remove("filled");
-                delete slot.dataset.tileIndex;
-              });
-
-              tiles.forEach(tile => {
-                tile.disabled = false;
-                tile.classList.remove("used");
-              });
-            }
-          };
-        }
-
-        const letterGroups = [];
-
-        if (game.type === "crossword") {
-          letterGame.querySelectorAll("[data-crossword-word]").forEach(group => {
-            const setup = setupLetterGroup(group);
-            if (setup) letterGroups.push(setup);
-          });
-        } else {
-          const setup = setupLetterGroup(letterGame);
-          if (setup) letterGroups.push(setup);
-        }
-
-        letterGame.querySelectorAll(".nq-reset-letters").forEach(resetButton => {
-          resetButton.addEventListener("click", () => {
-            letterGroups.forEach(group => group.clear());
-
-            letterGame.querySelectorAll(".nq-crossword-status").forEach(status => {
-              status.textContent = "";
-              status.classList.remove("is-correct", "is-wrong");
-            });
-
-            message.innerHTML = "";
-          });
+        gameContainer.querySelectorAll("input").forEach(input => {
+          input.disabled = true;
         });
 
+        gameContainer.querySelectorAll(".nq-crossword-status").forEach(status => {
+          status.classList.add("is-correct");
+        });
+
+        unlockGamePage();
+      }
+
+      /* JUMBLED WORDS AND 4 PICS 1 WORD */
+
+      if (
+        game.type === "jumbled" ||
+        game.type === "fourPics"
+      ) {
+        const input = gameContainer.querySelector(".game-answer");
+
+        if (!input) return;
+
         button.addEventListener("click", () => {
-          if (game.type === "crossword") {
-            let allCorrect = true;
-
-            letterGroups.forEach(group => {
-              const wordElement = group.group;
-              const originalIndex = Number(wordElement.dataset.crosswordWord);
-              const word = game.words?.[originalIndex];
-              const status = wordElement.querySelector(".nq-crossword-status");
-
-              const userAnswer = normalizeAnswer(group.getAnswer());
-              const correctAnswer = normalizeAnswer(word?.answer);
-
-              if (userAnswer && userAnswer === correctAnswer) {
-                status.textContent = "Correct!";
-                status.classList.remove("is-wrong");
-                status.classList.add("is-correct");
-              } else {
-                allCorrect = false;
-
-                status.textContent = userAnswer
-                  ? "Not quite. Try this clue again."
-                  : "Fill in the letters for this clue.";
-
-                status.classList.remove("is-correct");
-                status.classList.add("is-wrong");
-              }
-            });
-
-            if (allCorrect && letterGroups.length > 0) {
-              markGameCorrect();
-            } else {
-              playSound("wrong.mp3");
-              message.innerHTML = setMessage(
-                "Some crossword answers are incomplete or incorrect. Try again."
-              );
-            }
-
-            return;
-          }
-
-          const group = letterGroups[0];
-          if (!group) return;
-
-          const userAnswer = normalizeAnswer(group.getAnswer());
+          const userAnswer = normalizeAnswer(input.value);
           const correctAnswer = normalizeAnswer(game.answer);
 
           if (!userAnswer) {
             message.innerHTML = setMessage(
-              "Tap the letters to fill the answer boxes first."
+              "Please enter your answer first."
             );
             return;
           }
 
-          if (userAnswer.length !== group.slots.length) {
+          if (!correctAnswer) {
             message.innerHTML = setMessage(
-              "Fill in every answer box before checking."
+              "This game does not have an answer configured. Please inform the researcher."
             );
             return;
           }
@@ -894,35 +1053,93 @@
           } else {
             playSound("wrong.mp3");
             message.innerHTML = setMessage(
-              "Not quite. Tap a filled box to remove its letter and try again."
+              "Not quite. Try again."
             );
           }
         });
-      } else {
-        /* Fallback for older game markup using a text input. */
-        const input = gameContainer.querySelector(".game-answer");
 
-        if (input) {
-          button.addEventListener("click", () => {
+        input.addEventListener("keydown", event => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            button.click();
+          }
+        });
+      }
+
+      /* MINI CROSSWORD */
+
+      if (game.type === "crossword") {
+        const crosswordInputs = Array.from(
+          gameContainer.querySelectorAll(".nq-crossword-answer")
+        );
+
+        if (!crosswordInputs.length) {
+          message.innerHTML = setMessage(
+            "This crossword has no valid words configured."
+          );
+          button.disabled = true;
+          return;
+        }
+
+        button.addEventListener("click", () => {
+          let allCorrect = true;
+          let answeredCount = 0;
+
+          crosswordInputs.forEach(input => {
+            const wordIndex = Number(input.dataset.wordIndex);
+            const word = game.words?.[wordIndex];
+            const status = gameContainer.querySelector(
+              `[data-word-status="${wordIndex}"]`
+            );
+
             const userAnswer = normalizeAnswer(input.value);
-            const correctAnswer = normalizeAnswer(game.answer);
+            const correctAnswer = normalizeAnswer(word?.answer);
 
-            if (!userAnswer) {
-              message.innerHTML = setMessage("Please enter your answer first.");
-              return;
-            }
+            if (userAnswer) answeredCount++;
 
-            if (userAnswer === correctAnswer) {
-              markGameCorrect();
-              input.disabled = true;
-            } else {
-              playSound("wrong.mp3");
-              message.innerHTML = setMessage("Not quite. Try again.");
+            if (
+              !userAnswer ||
+              !correctAnswer ||
+              userAnswer !== correctAnswer
+            ) {
+              allCorrect = false;
+
+              if (status) {
+                status.textContent = userAnswer
+                  ? "Check this answer and try again."
+                  : "Answer this clue.";
+                status.classList.remove("is-correct");
+                status.classList.add("is-wrong");
+              }
+            } else if (status) {
+              status.textContent = "Correct";
+              status.classList.remove("is-wrong");
+              status.classList.add("is-correct");
             }
           });
-        }
+
+          if (allCorrect && answeredCount === crosswordInputs.length) {
+            markGameCorrect();
+          } else {
+            playSound("wrong.mp3");
+            message.innerHTML = setMessage(
+              "Some answers are missing or incorrect. Check each clue and try again."
+            );
+          }
+        });
+
+        crosswordInputs.forEach(input => {
+          input.addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              button.click();
+            }
+          });
+        });
       }
     });
+
+    /* FINAL QUIZ BUTTON */
 
     const quizButton = document.querySelector("#begin-quiz");
 
@@ -937,174 +1154,419 @@
   }
 
   /* =========================================================
-     LETTER TILE HELPERS
-  ========================================================= */
-
-  function makeLetterTiles(answer, prefix) {
-    const letters = Array.from(String(answer || "").replace(/\s/g, "").toUpperCase());
-
-    for (let i = letters.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [letters[i], letters[j]] = [letters[j], letters[i]];
-    }
-
-    return letters.map((letter, index) => `
-      <button type="button" class="nq-letter-tile"
-        data-tile="${prefix}-${index}"
-        data-letter="${escapeAttr(letter)}"
-        aria-label="Letter ${escapeAttr(letter)}">
-        ${escapeHTML(letter)}
-      </button>
-    `).join("");
-  }
-
-  function makeAnswerSlots(answer, prefix) {
-    const letters = Array.from(String(answer || "").replace(/\s/g, ""));
-
-    return letters.map((_, index) => `
-      <button type="button" class="nq-answer-slot"
-        data-slot="${prefix}-${index}"
-        aria-label="Answer box ${index + 1}">&nbsp;</button>
-    `).join("");
-  }
-
-  /* =========================================================
-     READER GAME
+     READER GAME RENDERER
   ========================================================= */
 
   function renderReaderGame(game) {
     if (!game || !game.type) return "";
 
+    /* JUMBLED WORDS */
+
     if (game.type === "jumbled") {
-      const answer = String(game.answer || "").replace(/\s/g, "");
+      const answerLetters = Array.from(
+        String(game.answer || "")
+          .replace(/\s/g, "")
+      );
 
       return `
-        <div class="game-box nq-letter-game" data-letter-game="jumbled">
+        <div class="game-box">
           <div class="eyebrow">Interactive Game</div>
           <h3>Jumbled Words</h3>
-          <p class="small">Tap the letters in the correct order to form the word.</p>
 
-          ${game.hint ? `
-            <p class="small"><strong>Hint:</strong> ${escapeHTML(game.hint)}</p>
-          ` : ""}
-
-          <div class="nq-answer-slots" data-answer-slots>
-            ${makeAnswerSlots(answer, "jumble")}
-          </div>
-
-          <p class="nq-letter-help">
-            Tap a letter to place it. Tap a filled box to remove its letter.
+          <p class="small">
+            Unscramble the letters to find the correct word.
           </p>
 
-          <div class="nq-letter-bank" data-letter-bank>
-            ${makeLetterTiles(answer, "jumble")}
+          <div class="nq-game-letter-bank" aria-label="Jumbled letters">
+            ${
+              Array.from(String(game.scrambled || ""))
+                .filter(character => !/\s/.test(character))
+                .map(character => `
+                  <span class="nq-game-letter">
+                    ${escapeHTML(character)}
+                  </span>
+                `)
+                .join("") ||
+              answerLetters.map(character => `
+                <span class="nq-game-letter">
+                  ${escapeHTML(character)}
+                </span>
+              `).join("")
+            }
           </div>
 
-          <button class="game-submit primary-btn" type="button">Check Answer</button>
-          <button class="nq-reset-letters" type="button">Clear Answer</button>
-          <div class="game-message nq-game-feedback" aria-live="polite"></div>
+          ${
+            game.hint
+              ? `
+                <p class="small">
+                  <strong>Hint:</strong> ${escapeHTML(game.hint)}
+                </p>
+              `
+              : ""
+          }
+
+          <input
+            class="game-answer game-input"
+            type="text"
+            autocomplete="off"
+            autocapitalize="none"
+            placeholder="Type your answer"
+            aria-label="Your jumbled word answer"
+          >
+
+          <button class="game-submit primary-btn" type="button">
+            Check Answer
+          </button>
+
+          <div class="game-message" aria-live="polite"></div>
         </div>
       `;
     }
+
+    /* 4 PICS 1 WORD */
 
     if (game.type === "fourPics") {
-      const answer = String(game.answer || "").replace(/\s/g, "");
-      const images = Array.isArray(game.images) ? game.images.slice(0, 4) : [];
+      const images = Array.isArray(game.images)
+        ? game.images.slice(0, 4)
+        : [];
 
       return `
-        <div class="game-box nq-letter-game" data-letter-game="fourPics">
+        <div class="game-box">
           <div class="eyebrow">Interactive Game</div>
           <h3>4 Pics 1 Word</h3>
-          <p class="small">Look at the pictures, then tap letters to build the answer.</p>
+
+          <p class="small">
+            Look at the four pictures and find the word they have in common.
+          </p>
 
           <div class="four-pics-grid">
-            ${images.map((image, index) => `
-              <img src="${escapeAttr(image)}" alt="Picture ${index + 1}"
-                class="game-image" loading="lazy">
-            `).join("")}
+            ${
+              images.map((image, index) => {
+                const imageUrl = String(image || "").trim();
+
+                if (!imageUrl) {
+                  return `
+                    <div class="nq-image-placeholder">
+                      Image ${index + 1}
+                    </div>
+                  `;
+                }
+
+                return `
+                  <img
+                    src="${escapeAttr(imageUrl)}"
+                    alt="Picture ${index + 1}"
+                    class="game-image"
+                    loading="lazy"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                  >
+                  <div
+                    class="nq-image-placeholder"
+                    style="display:none"
+                  >
+                    Image unavailable
+                  </div>
+                `;
+              }).join("")
+            }
           </div>
 
-          ${game.hint ? `
-            <p class="small"><strong>Hint:</strong> ${escapeHTML(game.hint)}</p>
-          ` : ""}
+          ${
+            game.hint
+              ? `
+                <p class="small">
+                  <strong>Hint:</strong> ${escapeHTML(game.hint)}
+                </p>
+              `
+              : ""
+          }
 
-          <div class="nq-answer-slots" data-answer-slots>
-            ${makeAnswerSlots(answer, "pics")}
-          </div>
+          <input
+            class="game-answer game-input"
+            type="text"
+            autocomplete="off"
+            autocapitalize="none"
+            placeholder="What is the word?"
+            aria-label="Your four pictures one word answer"
+          >
 
-          <div class="nq-letter-bank" data-letter-bank>
-            ${makeLetterTiles(answer, "pics")}
-          </div>
+          <button class="game-submit primary-btn" type="button">
+            Check Answer
+          </button>
 
-          <button class="game-submit primary-btn" type="button">Check Answer</button>
-          <button class="nq-reset-letters" type="button">Clear Answer</button>
-          <div class="game-message nq-game-feedback" aria-live="polite"></div>
+          <div class="game-message" aria-live="polite"></div>
         </div>
       `;
     }
+
+    /* MINI CROSSWORD */
 
     if (game.type === "crossword") {
       const words = Array.isArray(game.words)
-        ? game.words.map((word, index) => ({
-            ...word,
-            originalIndex: index,
-            answer: String(word.answer || "").replace(/\s/g, ""),
-            clue: String(word.clue || ""),
-            direction: word.direction === "down" ? "Down" : "Across"
-          })).filter(word => word.answer.length > 0 && word.clue.trim())
+        ? game.words
+            .map((word, index) => ({
+              originalIndex: index,
+              answer: String(word.answer || "").trim().toUpperCase(),
+              clue: String(word.clue || "").trim(),
+              row: Number(word.row),
+              column: Number(word.column),
+              direction: word.direction === "down" ? "down" : "across"
+            }))
+            .filter(word =>
+              word.answer.length > 0 &&
+              word.clue.length > 0 &&
+              Number.isInteger(word.row) &&
+              Number.isInteger(word.column) &&
+              word.row >= 1 &&
+              word.column >= 1
+            )
         : [];
 
-      if (words.length === 0) {
+      const sizeValue = Number(game.size);
+      const size = Number.isInteger(sizeValue) && sizeValue > 0
+        ? Math.min(sizeValue, 20)
+        : 8;
+
+      if (!words.length) {
         return `
           <div class="game-box">
             <div class="eyebrow">Interactive Game</div>
             <h3>Mini Crossword</h3>
-            <p class="small">
-              No crossword words are configured. Please inform the researcher.
-            </p>
+
+            <div class="nq-crossword-empty">
+              This crossword has no valid clues yet. Please inform the researcher.
+            </div>
+
+            <div class="game-message"></div>
+            <button class="game-submit primary-btn" type="button" disabled>
+              Crossword unavailable
+            </button>
           </div>
         `;
       }
 
+      /*
+       * Build a grid from the researcher's word coordinates.
+       * Researcher row and column values are treated as 1-based.
+       */
+
+      const cells = new Map();
+      const starts = new Map();
+      const wordNumbers = new Map();
+      const acrossWords = [];
+      const downWords = [];
+
+      function cellKey(row, column) {
+        return `${row},${column}`;
+      }
+
+      words.forEach(word => {
+        const startKey = cellKey(word.row, word.column);
+
+        if (!starts.has(startKey)) {
+          starts.set(startKey, []);
+        }
+
+        starts.get(startKey).push(word.originalIndex);
+      });
+
+      let clueNumber = 0;
+      const numberedStarts = new Map();
+
+      words
+        .slice()
+        .sort((a, b) =>
+          a.row - b.row ||
+          a.column - b.column ||
+          a.originalIndex - b.originalIndex
+        )
+        .forEach(word => {
+          const key = cellKey(word.row, word.column);
+
+          if (!numberedStarts.has(key)) {
+            clueNumber++;
+            numberedStarts.set(key, clueNumber);
+          }
+
+          wordNumbers.set(word.originalIndex, numberedStarts.get(key));
+        });
+
+      words.forEach(word => {
+        const answer = word.answer.replace(/\s/g, "");
+        const row = word.row;
+        const column = word.column;
+
+        if (word.direction === "across") {
+          acrossWords.push(word);
+        } else {
+          downWords.push(word);
+        }
+
+        if (
+          row > size ||
+          column > size ||
+          row < 1 ||
+          column < 1
+        ) {
+          return;
+        }
+
+        Array.from(answer).forEach((letter, offset) => {
+          const targetRow = word.direction === "down"
+            ? row + offset
+            : row;
+
+          const targetColumn = word.direction === "across"
+            ? column + offset
+            : column;
+
+          if (
+            targetRow < 1 ||
+            targetRow > size ||
+            targetColumn < 1 ||
+            targetColumn > size
+          ) {
+            return;
+          }
+
+          const key = cellKey(targetRow, targetColumn);
+
+          if (!cells.has(key)) {
+            cells.set(key, {
+              row: targetRow,
+              column: targetColumn,
+              letter,
+              numbers: []
+            });
+          } else {
+            /*
+             * Keep the first letter if the researcher has configured
+             * conflicting crossing words. The researcher should correct
+             * conflicting answers in the editor.
+             */
+            const existing = cells.get(key);
+            if (existing.letter !== letter) {
+              existing.conflict = true;
+            }
+          }
+
+          const cell = cells.get(key);
+          const number = wordNumbers.get(word.originalIndex);
+
+          if (
+            offset === 0 &&
+            number &&
+            !cell.numbers.includes(number)
+          ) {
+            cell.numbers.push(number);
+          }
+        });
+      });
+
+      let gridHTML = "";
+
+      for (let row = 1; row <= size; row++) {
+        for (let column = 1; column <= size; column++) {
+          const cell = cells.get(cellKey(row, column));
+
+          if (!cell) {
+            gridHTML += `<div class="nq-crossword-cell is-block"></div>`;
+            continue;
+          }
+
+          gridHTML += `
+            <div class="nq-crossword-cell ${cell.numbers.length ? "is-start" : ""}">
+              ${
+                cell.numbers.length
+                  ? `<span class="nq-crossword-number">${cell.numbers[0]}</span>`
+                  : ""
+              }
+              <span class="nq-crossword-letter">&nbsp;</span>
+            </div>
+          `;
+        }
+      }
+
+      function renderClueList(list) {
+        if (!list.length) {
+          return `<p class="small">No clues in this direction.</p>`;
+        }
+
+        return list.map(word => {
+          const number = wordNumbers.get(word.originalIndex) || "?";
+          const answerLength = word.answer.replace(/\s/g, "").length;
+
+          return `
+            <div class="nq-crossword-clue">
+              <label for="crossword-answer-${word.originalIndex}">
+                ${number}. ${escapeHTML(word.clue)}
+                <span class="small">(${answerLength} letters)</span>
+              </label>
+
+              <input
+                id="crossword-answer-${word.originalIndex}"
+                class="nq-crossword-answer"
+                data-word-index="${word.originalIndex}"
+                type="text"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                placeholder="Enter answer"
+                aria-label="Crossword clue ${number}"
+              >
+
+              <div
+                class="nq-crossword-status"
+                data-word-status="${word.originalIndex}"
+                aria-live="polite"
+              ></div>
+            </div>
+          `;
+        }).join("");
+      }
+
       return `
-        <div class="game-box nq-letter-game" data-letter-game="crossword">
+        <div class="game-box">
           <div class="eyebrow">Interactive Game</div>
           <h3>Mini Crossword</h3>
+
           <p class="small">
-            Solve every clue. Tap the letters in order to fill each answer.
+            Solve every clue to unlock the next part of the article.
           </p>
 
-          ${words.map(word => {
-            const prefix = `cross-${word.originalIndex}`;
-
-            return `
-              <div class="nq-crossword-word"
-                data-crossword-word="${word.originalIndex}">
-                <h4>${word.direction} ${word.originalIndex + 1}</h4>
-                <p>${escapeHTML(word.clue)}</p>
-
-                <div class="nq-answer-slots" data-answer-slots>
-                  ${makeAnswerSlots(word.answer, prefix)}
-                </div>
-
-                <div class="nq-letter-bank" data-letter-bank>
-                  ${makeLetterTiles(word.answer, prefix)}
-                </div>
-
-                <p class="nq-letter-help">
-                  Tap a letter to fill the next box. Tap a filled box to remove it.
-                </p>
-
-                <div class="nq-crossword-status" aria-live="polite"></div>
+          <div class="nq-crossword-layout">
+            <div class="nq-crossword-grid-wrap">
+              <div
+                class="nq-crossword-grid"
+                style="grid-template-columns: repeat(${size}, 34px)"
+                aria-label="Crossword grid preview"
+              >
+                ${gridHTML}
               </div>
-            `;
-          }).join("")}
+
+              <p class="small">
+                Fill in the answers using the clues. The clue list below is the answer input area.
+              </p>
+            </div>
+
+            <div class="nq-crossword-clues">
+              <div class="nq-crossword-clue-group">
+                <h4>Across</h4>
+                ${renderClueList(acrossWords)}
+              </div>
+
+              <div class="nq-crossword-clue-group">
+                <h4>Down</h4>
+                ${renderClueList(downWords)}
+              </div>
+            </div>
+          </div>
 
           <button class="game-submit primary-btn" type="button">
             Check Crossword
           </button>
-          <button class="nq-reset-letters" type="button">Clear All Answers</button>
-          <div class="game-message nq-game-feedback" aria-live="polite"></div>
+
+          <div class="game-message" aria-live="polite"></div>
         </div>
       `;
     }
@@ -1117,25 +1579,34 @@
   ========================================================= */
 
   function renderOldArticle(article, session) {
-    document.querySelector("#app").innerHTML = `
+    getAppRoot().innerHTML = `
       <div class="topbar">
         <div class="progress-wrap">
           <div class="progress-label">
             <span>Reading</span>
             <span>Article</span>
           </div>
+
           <div class="progress-track">
-            <div class="progress-fill" style="width:100%"></div>
+            <div class="progress-fill" style="width: 100%"></div>
           </div>
         </div>
+
         <div class="points">+0 points</div>
       </div>
 
       <article class="article-card card">
-        ${article.image ? `
-          <img class="article-image" src="${escapeAttr(article.image)}"
-            alt="Article image">
-        ` : ""}
+        ${
+          article.image
+            ? `
+              <img
+                class="article-image"
+                src="${escapeAttr(article.image)}"
+                alt="Article image"
+              >
+            `
+            : ""
+        }
 
         <div class="article-content">
           <div class="eyebrow">
@@ -1143,7 +1614,10 @@
           </div>
 
           <h2>${escapeHTML(article.title || "")}</h2>
-          <p class="article-body">${escapeHTML(article.body || "")}</p>
+
+          <p class="article-body">
+            ${escapeHTML(article.body || "")}
+          </p>
 
           <div class="action-row">
             <button id="begin-quiz" class="primary-btn" type="button">
@@ -1165,44 +1639,65 @@
   ========================================================= */
 
   function renderQuiz(article) {
-    document.querySelector("#app").innerHTML = `
+    getAppRoot().innerHTML = `
       <div class="topbar">
         <div class="progress-wrap">
           <div class="progress-label">
             <span>Quiz progress</span>
             <span>5 questions</span>
           </div>
+
           <div class="progress-track">
-            <div class="progress-fill" style="width:100%"></div>
+            <div class="progress-fill" style="width: 100%"></div>
           </div>
         </div>
+
         <div class="points">Up to 100 points</div>
       </div>
 
       <form id="quiz-form" class="quiz-card card">
         <div class="eyebrow">Knowledge check</div>
+
         <h2>${escapeHTML(article.title || "")}</h2>
-        <p class="small">Answer all five questions before submitting.</p>
 
-        ${Array.isArray(article.questions) ? article.questions.map((question, index) => `
-          <fieldset class="question">
-            <legend class="question-title">
-              ${index + 1}. ${escapeHTML(question.text)}
-            </legend>
+        <p class="small">
+          Answer all five questions before submitting.
+        </p>
 
-            ${Array.isArray(question.choices) ? question.choices.map((choice, choiceIndex) => `
-              <label class="choice">
-                <input type="radio" name="question-${index}"
-                  value="${choiceIndex}" required>
-                <span>${escapeHTML(choice)}</span>
-              </label>
-            `).join("") : ""}
-          </fieldset>
-        `).join("") : ""}
+        ${
+          Array.isArray(article.questions)
+            ? article.questions.map((question, index) => `
+              <fieldset class="question">
+                <legend class="question-title">
+                  ${index + 1}. ${escapeHTML(question.text)}
+                </legend>
+
+                ${
+                  Array.isArray(question.choices)
+                    ? question.choices.map((choice, choiceIndex) => `
+                      <label class="choice">
+                        <input
+                          type="radio"
+                          name="question-${index}"
+                          value="${choiceIndex}"
+                          required
+                        >
+
+                        <span>${escapeHTML(choice)}</span>
+                      </label>
+                    `).join("")
+                    : ""
+                }
+              </fieldset>
+            `).join("")
+            : ""
+        }
 
         <div id="quiz-message"></div>
 
-        <button class="primary-btn" type="submit">Submit quiz</button>
+        <button class="primary-btn" type="submit">
+          Submit quiz
+        </button>
       </form>
     `;
 
@@ -1219,87 +1714,256 @@
     event.preventDefault();
 
     const session = getSession();
+
+    if (!session?.code || !session?.articleId) {
+      const message = document.querySelector("#quiz-message");
+
+      if (message) {
+        message.innerHTML = setMessage(
+          "Your session is missing. Please return to the start page and use your respondent code."
+        );
+      }
+
+      return;
+    }
+
     const formData = new FormData(event.target);
     const message = document.querySelector("#quiz-message");
 
-    if (!session?.code || !session?.articleId) {
-      message.innerHTML = setMessage(
-        "Your session has expired. Please return to the start and enter your code again."
-      );
-      return;
-    }
-
-    const questions = Array.isArray(article.questions)
-      ? article.questions
-      : [];
-
-    if (questions.length !== 5) {
-      message.innerHTML = setMessage(
-        "This quiz is not configured correctly. Please contact the researcher."
-      );
-      return;
-    }
-
-    const answers = questions.map((question, index) => {
-      const selected = formData.get(`question-${index}`);
-      return selected === null ? null : Number(selected);
-    });
-
-    if (answers.some(answer => answer === null || !Number.isInteger(answer))) {
-      message.innerHTML = setMessage(
-        "Please answer all five questions before submitting."
-      );
-      return;
-    }
-
-    const submitButton = event.target.querySelector(
-      'button[type="submit"]'
+    const answers = article.questions.map((_, index) =>
+      Number(formData.get(`question-${index}`))
     );
 
-    if (submitButton) {
-      submitButton.disabled = true;
-      submitButton.textContent = "Submitting...";
-    }
+    const score = article.questions.reduce((total, question, index) => {
+      return total + (answers[index] === question.correct ? 1 : 0);
+    }, 0);
+
+    const responseData = {
+      respondentCode: session.code,
+      set: session.set,
+      articleId: session.articleId,
+      answers,
+      score,
+      totalQuestions: 5,
+      percentage: score * 20,
+      points: score * 20,
+      submittedAt: serverTimestamp(),
+      status: "Completed"
+    };
 
     try {
-      const correctAnswers = questions.map(question =>
-        Number(question.answer)
-      );
-
-      const score = answers.reduce((total, answer, index) => {
-        return total + (answer === correctAnswers[index] ? 1 : 0);
-      }, 0);
-
-      const points = score * 20;
-
-      /*
-       * IMPORTANT:
-       * This section only calculates the score.
-       * Your existing Firebase submission code must still save
-       * the respondent's answers and result to the database.
-       */
-
       message.innerHTML = setMessage(
-        `Quiz checked: ${score}/5 correct (${points} points).`
+        "Submitting your answers...",
+        "notice"
       );
 
-      console.log("Quiz result:", {
-        articleId: session.articleId,
-        answers,
-        score,
-        points
+      const submitButton = event.target.querySelector(
+        'button[type="submit"]'
+      );
+
+      if (submitButton) submitButton.disabled = true;
+
+      const codeRef = doc(db, "respondentCodes", session.code);
+      const responseRef = doc(db, "responses", session.code);
+      const leaderboardRef = doc(
+        db,
+        "leaderboards",
+        session.articleId,
+        "entries",
+        session.code
+      );
+
+      const participantNumber = session.code.split("-")[1] || "000";
+
+      await runTransaction(db, async transaction => {
+        const codeSnapshot = await transaction.get(codeRef);
+
+        if (!codeSnapshot.exists()) {
+          throw new Error("CODE_NOT_FOUND");
+        }
+
+        const currentCode = codeSnapshot.data();
+
+        if (currentCode.status === "Used") {
+          throw new Error("CODE_ALREADY_USED");
+        }
+
+        transaction.update(codeRef, {
+          status: "Used",
+          usedAt: serverTimestamp()
+        });
+
+        transaction.set(responseRef, responseData);
+
+        transaction.set(leaderboardRef, {
+          articleId: session.articleId,
+          set: session.set,
+          displayName: `Participant ${participantNumber}`,
+          points: responseData.points,
+          score: responseData.score,
+          respondentCode: session.code,
+          createdAt: serverTimestamp()
+        });
       });
 
+      playSound("complete.mp3");
+      showConfetti();
+
+      await renderResult({
+        ...responseData,
+        submittedAt: new Date().toISOString()
+      });
     } catch (error) {
-      console.error("Quiz submission error:", error);
+      console.error(error);
+
+      const submitButton = document.querySelector(
+        '#quiz-form button[type="submit"]'
+      );
+
+      if (submitButton) submitButton.disabled = false;
+
+      if (error.message === "CODE_ALREADY_USED") {
+        message.innerHTML = setMessage(
+          "This respondent code has already been used."
+        );
+        return;
+      }
+
+      if (error.message === "CODE_NOT_FOUND") {
+        message.innerHTML = setMessage(
+          "This respondent code is no longer available."
+        );
+        return;
+      }
 
       message.innerHTML = setMessage(
         "Your response could not be submitted. Please try again."
       );
-    } finally {
-      if (submitButton) {
-        submitButton.disabled = false;
-        submitButton.textContent = "Submit quiz";
+    }
+  }
+
+  /* =========================================================
+     RESULT AND LEADERBOARD
+  ========================================================= */
+
+  async function renderResult(response) {
+    getAppRoot().innerHTML = `
+      <section class="result-card card">
+        <div class="eyebrow">Completed</div>
+
+        <h2>Your NewsQuest result</h2>
+
+        <div class="result-score">
+          ${response.score}/5
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat">
+            <span class="small">Percentage</span>
+            <strong>${response.percentage}%</strong>
+          </div>
+
+          <div class="stat">
+            <span class="small">Points earned</span>
+            <strong>${response.points}</strong>
+          </div>
+
+          <div class="stat">
+            <span class="small">Status</span>
+            <strong>Done</strong>
+          </div>
+        </div>
+
+        <div class="notice">
+          Thank you. Your response has been recorded.
+          This respondent code cannot be used for another attempt.
+        </div>
+
+        <section style="margin-top: 30px; text-align: left;">
+          <div class="eyebrow">Article leaderboard</div>
+
+          <h3>
+            Top Participants ·
+            ${escapeHTML(String(response.articleId || "").replace("article", "Article "))}
+          </h3>
+
+          <div id="leaderboard">
+            <div class="notice">Loading leaderboard...</div>
+          </div>
+        </section>
+
+        <p class="small" style="margin-top: 24px;">
+          Correct answers are not displayed in the respondent interface.
+        </p>
+      </section>
+    `;
+
+    try {
+      const leaderboardQuery = query(
+        collection(db, "leaderboards", response.articleId, "entries"),
+        orderBy("points", "desc"),
+        limit(10)
+      );
+
+      const snapshot = await getDocs(leaderboardQuery);
+
+      const rows = snapshot.docs.map((item, index) => {
+        const entry = item.data();
+        const rank = index + 1;
+
+        let medal = "";
+
+        if (rank === 1) medal = "🥇";
+        if (rank === 2) medal = "🥈";
+        if (rank === 3) medal = "🥉";
+
+        return `
+          <div
+            class="stat"
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 12px;
+              margin-bottom: 10px;
+            "
+          >
+            <span>
+              <strong>
+                ${medal} ${rank}. ${escapeHTML(entry.displayName || "Participant")}
+              </strong>
+            </span>
+
+            <span>${Number(entry.points || 0)} pts</span>
+          </div>
+        `;
+      }).join("");
+
+      const leaderboard = document.querySelector("#leaderboard");
+
+      if (leaderboard) {
+        leaderboard.innerHTML = rows || `
+          <div class="notice">No leaderboard entries yet.</div>
+        `;
+      }
+    } catch (error) {
+      console.error("Leaderboard error:", error);
+
+      const leaderboard = document.querySelector("#leaderboard");
+
+      if (leaderboard) {
+        leaderboard.innerHTML = `
+          <div class="error">Leaderboard could not be loaded.</div>
+        `;
       }
     }
   }
+
+  /* =========================================================
+     START APP
+  ========================================================= */
+
+  injectGameStyles();
+  renderWelcome();
+
+})();
