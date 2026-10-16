@@ -1222,6 +1222,9 @@
     const formData = new FormData(event.target);
     const message = document.querySelector("#quiz-message");
 
-    if (!session?.code || !session?.articleId) {
-      message.innerHTML = setMessage(
-        "Your session has expired.
+  if (!session?.code || !session?.articleId) {
+  message.innerHTML = setMessage(
+    "Your session has expired. Please return to the start and enter your code again."
+  );
+  return;
+}
