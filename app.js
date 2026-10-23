@@ -500,10 +500,14 @@
       return;
     }
     if (normalizeAnswer(nickname) === "aninag") {
+      saveSession({ mode: "test-selection", nickname: "Aninag" });
       message.innerHTML = setMessage("Opening Test Mode...", "notice");
       renderTestArticleSelection("Aninag");
       return;
     }
+    // Persist the nickname before showing article tabs so refresh returns to
+    // article selection rather than losing the participant's place.
+    saveSession({ mode: "selection", nickname });
     await renderRespondentArticleSelection(nickname, message);
   }
 
@@ -516,7 +520,9 @@
       const participantSnapshot = await getDoc(participantRef);
 
       if (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") {
-        if (message) message.innerHTML = setMessage("This nickname has already submitted a response. Please use a different nickname.");
+        if (!message) renderWelcome();
+        const target = message || document.querySelector("#nickname-message");
+        if (target) target.innerHTML = setMessage("This nickname has already submitted a response. Please use a different nickname.");
         return;
       }
 
@@ -2227,6 +2233,13 @@
   ========================================================= */
 
   injectGameStyles();
-  renderWelcome();
+  const savedSession = getSession();
+  if (savedSession?.mode === "test" || savedSession?.mode === "test-selection") {
+    renderTestArticleSelection(savedSession.nickname || "Aninag");
+  } else if (savedSession?.nickname && ["selection", "official"].includes(savedSession.mode)) {
+    renderRespondentArticleSelection(savedSession.nickname);
+  } else {
+    renderWelcome();
+  }
 
 })();
