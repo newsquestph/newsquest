@@ -667,27 +667,6 @@
         gamePosition: null
       });
     }
-    /* BUILD BOOK PAGES */
-
-    const pages = [];
-    let currentParagraphs = [];
-
-    for (let i = 1; i <= totalParagraphs; i++) {
-      currentParagraphs.push({
-        number: i,
-        text: paragraphs[i - 1]
-      });
-
-      if (gameMap[i]) {
-        pages.push({
-          paragraphs: currentParagraphs,
-          game: gameMap[i],
-          gamePosition: i
-        });
-
-        currentParagraphs = [];
-      }
-    }
 
 // Always create a final page after the last game.
 // This allows the participant to reach the final quiz
