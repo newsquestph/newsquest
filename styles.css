@@ -1167,3 +1167,294 @@ th {
   padding: 8px;
   text-align: center;
 }
+
+/* =========================================
+   NEWSQUEST PLAYFUL GAME ANIMATIONS
+   High intensity, responsive, accessible
+========================================= */
+
+.nq-interactive-game {
+  perspective: 900px;
+}
+
+.nq-interactive-game .game-box {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid #d9e8cf;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 8% 5%, #fff3bd 0, transparent 25%),
+    radial-gradient(circle at 95% 12%, #d9f5e3 0, transparent 27%),
+    #fbfff7;
+  box-shadow: 0 12px 0 #dce8d4, 0 18px 32px rgba(32, 91, 53, .12);
+  animation: nqGameEntrance .65s cubic-bezier(.2, 1.4, .4, 1) both;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.nq-interactive-game .game-box::before {
+  content: "✦";
+  position: absolute;
+  top: 12px;
+  right: 17px;
+  color: #f3b72f;
+  font-size: 28px;
+  animation: nqSparkle 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.nq-interactive-game .game-box h3 {
+  animation: nqTitlePop .55s .08s both;
+}
+
+.nq-interactive-game .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: #e4f6dc;
+  color: #245433;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.nq-interactive-game .eyebrow::before {
+  content: "★";
+  color: #e9a923;
+}
+
+/* Jumbled Words: bouncing, tappable letter tiles */
+.nq-game-letter-bank {
+  gap: 9px;
+  perspective: 500px;
+}
+
+.nq-game-letter {
+  position: relative;
+  border: 2px solid #c6dfb9;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #f4ffe9, #d9efcd);
+  box-shadow: 0 4px 0 #bdd7b0;
+  cursor: default;
+  animation: nqLetterDrop .55s cubic-bezier(.2, 1.5, .4, 1) both;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.nq-game-letter:nth-child(4n + 1) { animation-delay: .04s; }
+.nq-game-letter:nth-child(4n + 2) { animation-delay: .10s; }
+.nq-game-letter:nth-child(4n + 3) { animation-delay: .16s; }
+.nq-game-letter:nth-child(4n) { animation-delay: .22s; }
+
+@media (hover: hover) and (pointer: fine) {
+  .nq-game-letter:hover {
+    transform: translateY(-6px) rotate(-4deg) scale(1.08);
+    background: #fff0ad;
+    box-shadow: 0 9px 0 #e7cf7c;
+  }
+}
+
+/* Four Pics 1 Word: reveal pictures one by one */
+.four-pics-grid {
+  gap: 12px;
+}
+
+.four-pics-grid .four-pics-tile {
+  position: relative;
+  border: 2px solid #d6e7cd;
+  border-radius: 17px;
+  box-shadow: 0 5px 0 #dce8d4;
+  animation: nqPictureReveal .6s cubic-bezier(.2, 1.35, .4, 1) both;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.four-pics-grid .four-pics-tile:nth-child(1) { animation-delay: .05s; }
+.four-pics-grid .four-pics-tile:nth-child(2) { animation-delay: .15s; }
+.four-pics-grid .four-pics-tile:nth-child(3) { animation-delay: .25s; }
+.four-pics-grid .four-pics-tile:nth-child(4) { animation-delay: .35s; }
+
+.four-pics-grid .four-pics-tile img {
+  transition: transform .35s ease, filter .35s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .four-pics-grid .four-pics-tile:hover {
+    transform: translateY(-5px) rotate(1deg);
+    border-color: #9bc58c;
+    box-shadow: 0 10px 0 #cfe2c5;
+  }
+
+  .four-pics-grid .four-pics-tile:hover img {
+    transform: scale(1.08);
+  }
+}
+
+/* All game inputs */
+.nq-interactive-game .game-input,
+.nq-interactive-game .nq-crossword-answer {
+  border: 2px solid #c9dcc1;
+  border-radius: 13px;
+  background: #fff;
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.nq-interactive-game .game-input:focus,
+.nq-interactive-game .nq-crossword-answer:focus {
+  outline: none;
+  border-color: #73b95e;
+  box-shadow: 0 0 0 4px rgba(115, 185, 94, .2);
+  transform: translateY(-2px);
+}
+
+/* Bouncy action button */
+.nq-interactive-game .game-submit {
+  border-radius: 13px;
+  box-shadow: 0 5px 0 rgba(27, 78, 42, .2);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+
+.nq-interactive-game .game-submit:not(:disabled):active {
+  transform: translateY(4px) scale(.98);
+  box-shadow: 0 1px 0 rgba(27, 78, 42, .2);
+}
+
+.nq-interactive-game .game-submit:not(:disabled):hover {
+  filter: brightness(1.04) saturate(1.1);
+}
+
+/* Mini Crossword: highlighted clue and cell motion */
+.nq-crossword-clue {
+  border-radius: 14px;
+  transition: background .2s ease, border-color .2s ease, transform .2s ease;
+}
+
+.nq-crossword-clue:focus-within {
+  border-color: #8dbf7d;
+  background: #f4ffed;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 0 #e0efd7;
+}
+
+.nq-crossword-cell:not(.is-block) {
+  border-radius: 6px;
+  transition: background .18s ease, transform .18s ease, border-color .18s ease;
+  animation: nqCellAppear .35s ease both;
+}
+
+.nq-crossword-cell.is-start {
+  background: #eff9e8;
+}
+
+.nq-crossword-cell.is-block {
+  border-radius: 4px;
+}
+
+.nq-crossword-status.is-correct {
+  animation: nqStatusPop .35s cubic-bezier(.2, 1.5, .4, 1) both;
+}
+
+/* Feedback states toggled by app.js */
+.nq-interactive-game .game-box.nq-game-shake {
+  animation: nqWrongShake .42s ease both;
+  border-color: #ed9c8e;
+}
+
+.nq-interactive-game .game-box.nq-game-won {
+  border-color: #80c66b;
+  box-shadow: 0 0 0 5px rgba(128, 198, 107, .2),
+              0 12px 0 #cce8be,
+              0 20px 35px rgba(32, 91, 53, .16);
+  animation: nqWinBounce .7s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+
+.nq-interactive-game .game-box.nq-game-won .nq-game-letter,
+.nq-interactive-game .game-box.nq-game-won .four-pics-tile,
+.nq-interactive-game .game-box.nq-game-won .nq-crossword-cell:not(.is-block) {
+  animation: nqWinTile .55s ease both;
+}
+
+.nq-interactive-game .game-box.nq-game-won .nq-game-letter:nth-child(2n),
+.nq-interactive-game .game-box.nq-game-won .four-pics-tile:nth-child(2n) {
+  animation-delay: .08s;
+}
+
+.nq-interactive-game .game-message {
+  animation: nqMessageIn .25s ease both;
+}
+
+.nq-interactive-game .game-box.nq-game-won .game-message {
+  font-weight: 800;
+}
+
+/* Animation keyframes */
+@keyframes nqGameEntrance {
+  from { opacity: 0; transform: translateY(24px) scale(.96) rotateX(4deg); }
+  to { opacity: 1; transform: translateY(0) scale(1) rotateX(0); }
+}
+
+@keyframes nqTitlePop {
+  from { opacity: 0; transform: translateY(8px) scale(.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes nqSparkle {
+  0%, 100% { transform: rotate(0) scale(.85); opacity: .6; }
+  50% { transform: rotate(22deg) scale(1.25); opacity: 1; }
+}
+
+@keyframes nqLetterDrop {
+  from { opacity: 0; transform: translateY(-18px) rotate(-8deg) scale(.75); }
+  to { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+}
+
+@keyframes nqPictureReveal {
+  from { opacity: 0; transform: translateY(14px) scale(.85) rotate(-3deg); }
+  to { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+
+@keyframes nqCellAppear {
+  from { opacity: .3; transform: scale(.82); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes nqWrongShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-7px) rotate(-.5deg); }
+  40%, 80% { transform: translateX(7px) rotate(.5deg); }
+}
+
+@keyframes nqWinBounce {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.025) rotate(-.5deg); }
+  65% { transform: scale(.99) rotate(.5deg); }
+  100% { transform: scale(1); }
+}
+
+@keyframes nqWinTile {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.12) rotate(3deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+@keyframes nqStatusPop {
+  from { opacity: 0; transform: scale(.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes nqMessageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .nq-interactive-game *,
+  .nq-interactive-game *::before,
+  .nq-interactive-game *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
