@@ -510,19 +510,12 @@
   async function renderRespondentArticleSelection(nickname, message) {
     const nicknameKey = nicknameDocumentId(nickname);
     const participantRef = doc(db, "participants", nicknameKey);
-    const responseRef = doc(db, "responses", nicknameKey);
 
     try {
       if (message) message.innerHTML = setMessage("Checking nickname...", "notice");
-      const [participantSnapshot, responseSnapshot] = await Promise.all([
-        getDoc(participantRef),
-        getDoc(responseRef)
-      ]);
+      const participantSnapshot = await getDoc(participantRef);
 
-      if (
-        (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") ||
-        responseSnapshot.exists()
-      ) {
+      if (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") {
         if (message) message.innerHTML = setMessage("This nickname has already submitted a response. Please use a different nickname.");
         return;
       }
@@ -677,7 +670,6 @@
   async function startRespondent(nickname, selectedArticleId, message) {
     const nicknameKey = nicknameDocumentId(nickname);
     const participantRef = doc(db, "participants", nicknameKey);
-    const responseRef = doc(db, "responses", nicknameKey);
     const messageBox = message || document.querySelector("#respondent-article-message");
     const buttons = document.querySelectorAll("#respondent-article-tabs [data-article-id]");
     buttons.forEach(button => button.disabled = true);
@@ -688,12 +680,8 @@
 
       await runTransaction(db, async transaction => {
         const participantSnapshot = await transaction.get(participantRef);
-        const responseSnapshot = await transaction.get(responseRef);
 
-        if (
-          (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") ||
-          responseSnapshot.exists()
-        ) {
+        if (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") {
           throw new Error("NICKNAME_ALREADY_USED");
         }
 
