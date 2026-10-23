@@ -1815,7 +1815,7 @@
 
     const session = getSession();
 
-    if (!session?.code || !session?.articleId || !session?.nicknameKey) {
+    if (!session?.code || !session?.articleId || (session.mode !== "test" && !session?.nicknameKey)) {
       const message = document.querySelector("#quiz-message");
       if (message) message.innerHTML = setMessage("Your session is missing. Please return to the start page and enter your nickname.");
       return;
