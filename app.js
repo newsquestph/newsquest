@@ -1292,6 +1292,7 @@
                   slot.classList.remove("is-filled");
                 });
                 input.value = "";
+                syncCrosswordGrid();
               }
             } else if (status) {
               status.textContent = "Correct";
