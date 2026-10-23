@@ -408,56 +408,89 @@
       <section class="welcome card">
         <div class="welcome-copy">
           <div class="eyebrow">Interactive research reading</div>
-
           <h1>Read smarter. Remember more.</h1>
-
           <p class="lead">
             NewsQuest is a gamified news-reading activity.
-            Your respondent code automatically assigns you
-            one study article and its five-question quiz.
+            Use your official respondent code for the study, or enter Test Mode
+            to preview an article and quiz without saving research results.
           </p>
 
           <form id="start-form">
             <div class="form-group">
-              <label for="respondent-code">Respondent code</label>
-
-              <input
-                id="respondent-code"
-                name="code"
-                required
-                autocomplete="off"
-                placeholder="Example: SET1-001"
-              >
-
-              <p class="small">
-                Enter the unique code provided by the researcher.
-              </p>
+              <label for="respondent-code">Official respondent code</label>
+              <input id="respondent-code" name="code" required autocomplete="off" placeholder="Example: SET1-001">
+              <p class="small">Use the unique code provided by the researcher.</p>
             </div>
-
             <div id="start-message"></div>
+            <button class="primary-btn" type="submit">Start Official Study</button>
+          </form>
 
-            <button class="primary-btn" type="submit">
-              Start NewsQuest
-            </button>
+          <hr style="margin: 26px 0; border: 0; border-top: 1px solid #d9e5d4;">
+
+          <form id="test-mode-form">
+            <div class="eyebrow">Test mode · no research data saved</div>
+            <div class="form-group">
+              <label for="test-nickname">Nickname</label>
+              <input id="test-nickname" name="nickname" autocomplete="off" maxlength="40" placeholder="Enter any nickname" required>
+            </div>
+            <div class="form-group">
+              <label for="test-article">Choose an article</label>
+              <select id="test-article" name="articleId" required>
+                <option value="article1">Article 1</option>
+                <option value="article2">Article 2</option>
+                <option value="article3">Article 3</option>
+              </select>
+            </div>
+            <div id="test-mode-message" aria-live="polite"></div>
+            <button class="primary-btn" type="submit">Preview Article and Quiz</button>
+            <p class="small">You can reuse the same nickname and repeat tests. Test attempts are not saved to official responses or leaderboards.</p>
           </form>
         </div>
 
         <div class="welcome-art" aria-hidden="true">
-          <div class="illustration">
-            <div class="illustration-inner">
-              <strong>NEWS</strong>
-              <hr>
-              <p>Read · Learn · Recall</p>
-              <span>+100 points</span>
-            </div>
-          </div>
+          <div class="illustration"><div class="illustration-inner">
+            <strong>NEWS</strong><hr><p>Read · Learn · Recall</p><span>+100 points</span>
+          </div></div>
         </div>
       </section>
     `;
 
-    document
-      .querySelector("#start-form")
-      .addEventListener("submit", startRespondent);
+    document.querySelector("#start-form").addEventListener("submit", startRespondent);
+    document.querySelector("#test-mode-form").addEventListener("submit", startTestMode);
+  }
+
+  async function startTestMode(event) {
+    event.preventDefault();
+    const nickname = document.querySelector("#test-nickname").value.trim();
+    const articleId = document.querySelector("#test-article").value;
+    const message = document.querySelector("#test-mode-message");
+
+    if (!nickname) {
+      message.innerHTML = setMessage("Please enter a nickname.");
+      return;
+    }
+
+    try {
+      message.innerHTML = setMessage("Loading selected article...", "notice");
+      const article = await getArticle(articleId);
+      if (!Array.isArray(article.questions) || article.questions.length !== 5) {
+        message.innerHTML = setMessage("This article must have exactly five quiz questions before it can be tested.");
+        return;
+      }
+
+      saveSession({
+        mode: "test",
+        code: `TEST-${Date.now()}`,
+        nickname,
+        set: "TEST MODE",
+        articleId,
+        startedAt: new Date().toISOString()
+      });
+      renderArticle(article);
+    } catch (error) {
+      console.error("Test Mode article load failed:", error);
+      message.innerHTML = setMessage("Could not load that article. Check that the article exists in Firestore as article1, article2, or article3.");
+    }
   }
 
   /* =========================================================
@@ -620,14 +653,15 @@
         position = gameIndex + 1;
       }
 
-      if (position >= 1 && position <= totalParagraphs) {
-        if (!gameMap[position]) gameMap[position] = [];
-        gameMap[position].push({
-          ...game,
-          _newsquestGameIndex: gameIndex
-        });
+      if (
+        position >= 1 &&
+        position <= totalParagraphs
+      ) {
+        gameMap[position] = game;
       }
     });
+
+    /* BUILD BOOK PAGES */
 
     const pages = [];
     let currentParagraphs = [];
@@ -638,10 +672,10 @@
         text: paragraphs[i - 1]
       });
 
-      if (gameMap[i]?.length) {
+      if (gameMap[i]) {
         pages.push({
           paragraphs: currentParagraphs,
-          games: gameMap[i],
+          game: gameMap[i],
           gamePosition: i
         });
 
@@ -649,38 +683,13 @@
       }
     }
 
-    if (
-      currentParagraphs.length > 0 ||
-      (pages.length > 0 && pages[pages.length - 1].games?.length)
-    ) {
+    if (currentParagraphs.length > 0) {
       pages.push({
         paragraphs: currentParagraphs,
-        games: [],
+        game: null,
         gamePosition: null
       });
     }
-
-    if (pages.length === 0) {
-      pages.push({
-        paragraphs: [],
-        games: [],
-        gamePosition: null
-      });
-    }
-
-// Always create a final page after the last game.
-// This allows the participant to reach the final quiz
-// even when a game is placed after the last paragraph.
-if (
-  currentParagraphs.length > 0 ||
-  (pages.length > 0 && pages[pages.length - 1].game)
-) {
-  pages.push({
-    paragraphs: currentParagraphs,
-    game: null,
-    gamePosition: null
-  });
-}
 
     if (pages.length === 0) {
       pages.push({
@@ -772,32 +781,31 @@ if (
                       `).join("")}
                     </div>
 
-                                      ${
-                      page.games?.length
+                    ${
+                      page.game
                         ? `
                           <div class="nq-game-break">
                             <div class="nq-game-line"></div>
                             <div class="nq-game-label">READER CHALLENGE</div>
-                            ${page.games.map(game => `
-                              <div
-                                class="nq-game-wrapper interactive-game nq-interactive-game"
-                                data-game-position="${page.gamePosition}"
-                                data-game-index="${game._newsquestGameIndex}"
-                              >
-                                ${renderReaderGame(game)}
-                              </div>
-                            `).join("")}
+
+                            <div
+                              class="nq-game-wrapper interactive-game nq-interactive-game"
+                              data-game-position="${page.gamePosition}"
+                            >
+                              ${renderReaderGame(page.game)}
+                            </div>
                           </div>
                         `
                         : ""
                     }
 
                     ${
-                      !page.games?.length && pageIndex === pages.length - 1
+                      !page.game && pageIndex === pages.length - 1
                         ? `
                           <div id="final-reading-action" class="nq-final-action">
                             <div class="nq-game-line"></div>
                             <div class="nq-game-label">ARTICLE COMPLETE</div>
+
                             <button
                               id="begin-quiz"
                               class="primary-btn"
@@ -809,6 +817,7 @@ if (
                         `
                         : ""
                     }
+
                     <div class="nq-page-footer">
                       <span>
                         ${pageIndex === 0 ? "THE DAILY STORY" : "STORY CONTINUES"}
@@ -995,8 +1004,8 @@ if (
     /* GAME ANSWER HANDLERS */
 
     document.querySelectorAll(".interactive-game").forEach(gameContainer => {
-      const gameIndex = Number(gameContainer.dataset.gameIndex);
-      const game = games[gameIndex];
+      const position = Number(gameContainer.dataset.gamePosition);
+      const game = gameMap[position];
 
       if (!game) return;
 
@@ -1005,65 +1014,44 @@ if (
 
       if (!message || !button) return;
 
- function unlockGamePage(gameContainer) {
-  const gamePosition = Number(gameContainer?.dataset?.gamePosition);
+      function unlockGamePage() {
+        const pageElement = gameContainer.closest(".nq-page");
+        if (!pageElement) return;
 
-  if (!Number.isFinite(gamePosition)) {
-    console.error("Invalid game position:", gameContainer?.dataset?.gamePosition);
-    return;
-  }
+        const pageIndex = Number(pageElement.dataset.page);
+        const nextPage = pageIndex + 1;
 
-  const gameContainers = document.querySelectorAll(
-    `.interactive-game[data-game-position="${gamePosition}"]`
-  );
+        if (nextPage < pageElements.length) {
+          unlockedPages.add(nextPage);
 
-  if (gameContainers.length === 0) return;
+          if (currentPage === pageIndex) {
+            nextButton.disabled = false;
+            nextButton.textContent = "Turn Page →";
+          }
+        }
+      }
 
-  const allGamesCompleted = Array.from(gameContainers).every(
-    container => container.dataset.gameComplete === "true"
-  );
+      function markGameCorrect() {
+        showConfetti();
+        playSound("correct.mp3");
 
-  if (!allGamesCompleted) return;
+        message.innerHTML = setMessage(
+          "Correct! Great job. You can now continue reading.",
+          "success"
+        );
 
-  const nextButton = document.getElementById("book-next");
+        button.disabled = true;
 
-  if (nextButton) {
-    nextButton.disabled = false;
-  }
-}
-    
-function markGameCorrect() {
-  const gameBox = gameContainer.querySelector(".game-box");
+        gameContainer.querySelectorAll("input").forEach(input => {
+          input.disabled = true;
+        });
 
-  if (gameBox) {
-    gameBox.classList.remove("nq-game-shake");
-    gameBox.classList.add("nq-game-won");
-  }
+        gameContainer.querySelectorAll(".nq-crossword-status").forEach(status => {
+          status.classList.add("is-correct");
+        });
 
-  showConfetti();
-  playSound("correct.mp3");
-
-  // Keep the existing completion tracking.
-  gameContainer.dataset.gameComplete = "true";
-
-  message.innerHTML = setMessage(
-    "Correct! Great job. You can now continue reading.",
-    "success"
-  );
-
-  button.disabled = true;
-
-  gameContainer.querySelectorAll("input").forEach(input => {
-    input.disabled = true;
-  });
-
-  gameContainer.querySelectorAll(".nq-crossword-status").forEach(status => {
-    status.classList.add("is-correct");
-  });
-
-  // Keep the existing paragraph/page progression.
-  unlockGamePage();
-}
+        unlockGamePage();
+      }
 
       /* JUMBLED WORDS AND 4 PICS 1 WORD */
 
@@ -1093,27 +1081,14 @@ function markGameCorrect() {
             return;
           }
 
-       
-if (userAnswer === correctAnswer) {
-  markGameCorrect();
-} else {
-  playSound("wrong.mp3");
-
-  const gameBox = gameContainer.querySelector(".game-box");
-
-  if (gameBox) {
-    gameBox.classList.remove("nq-game-shake");
-
-    // Restart the shake animation for every wrong attempt.
-    void gameBox.offsetWidth;
-
-    gameBox.classList.add("nq-game-shake");
-  }
-
-  message.innerHTML = setMessage(
-    "Not quite. Try again."
-  );
-}
+          if (userAnswer === correctAnswer) {
+            markGameCorrect();
+          } else {
+            playSound("wrong.mp3");
+            message.innerHTML = setMessage(
+              "Not quite. Try again."
+            );
+          }
         });
 
         input.addEventListener("keydown", event => {
@@ -1179,21 +1154,10 @@ if (userAnswer === correctAnswer) {
           if (allCorrect && answeredCount === crosswordInputs.length) {
             markGameCorrect();
           } else {
-         
-playSound("wrong.mp3");
-
-const gameBox = gameContainer.querySelector(".game-box");
-
-if (gameBox) {
-  gameBox.classList.remove("nq-game-shake");
-  void gameBox.offsetWidth;
-  gameBox.classList.add("nq-game-shake");
-}
-
-message.innerHTML = setMessage(
-  "Some answers are missing or incorrect. Check each clue and try again."
-);
-
+            playSound("wrong.mp3");
+            message.innerHTML = setMessage(
+              "Some answers are missing or incorrect. Check each clue and try again."
+            );
           }
         });
 
@@ -1292,79 +1256,81 @@ message.innerHTML = setMessage(
       `;
     }
 
-/* 4 PICS 1 WORD */
+    /* 4 PICS 1 WORD */
 
-if (game.type === "fourPics") {
-  const images = Array.isArray(game.images)
-    ? game.images.slice(0, 4)
-    : [];
+    if (game.type === "fourPics") {
+      const images = Array.isArray(game.images)
+        ? game.images.slice(0, 4)
+        : [];
 
-  while (images.length < 4) images.push("");
+      return `
+        <div class="game-box">
+          <div class="eyebrow">Interactive Game</div>
+          <h3>4 Pics 1 Word</h3>
 
-  return `
-    <div class="game-box">
-      <div class="eyebrow">Interactive Game</div>
-      <h3>4 Pics 1 Word</h3>
+          <p class="small">
+            Look at the four pictures and find the word they have in common.
+          </p>
 
-      <p class="small">
-        Look at the four pictures and find the word they have in common.
-      </p>
+          <div class="four-pics-grid">
+            ${
+              images.map((image, index) => {
+                const imageUrl = String(image || "").trim();
 
-      <div class="four-pics-grid">
-        ${images.map((image, index) => {
-          const imageUrl = String(image || "").trim();
-
-          return `
-            <div class="four-pics-tile">
-              ${
-                imageUrl
-                  ? `<img
-                      src="${escapeAttr(imageUrl)}"
-                      alt="Picture ${index + 1}"
-                      loading="lazy"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                    >`
-                  : ""
-              }
-
-              <div
-                class="nq-image-placeholder"
-                style="${imageUrl ? "display:none;" : ""}"
-              >
-                ${
-                  imageUrl
-                    ? "Image unavailable"
-                    : `Image ${index + 1} not set`
+                if (!imageUrl) {
+                  return `
+                    <div class="nq-image-placeholder">
+                      Image ${index + 1}
+                    </div>
+                  `;
                 }
-              </div>
-            </div>
-          `;
-        }).join("")}
-      </div>
 
-      ${
-        game.hint
-          ? `<p class="small"><strong>Hint:</strong> ${escapeHTML(game.hint)}</p>`
-          : ""
-      }
+                return `
+                  <img
+                    src="${escapeAttr(imageUrl)}"
+                    alt="Picture ${index + 1}"
+                    class="game-image"
+                    loading="lazy"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                  >
+                  <div
+                    class="nq-image-placeholder"
+                    style="display:none"
+                  >
+                    Image unavailable
+                  </div>
+                `;
+              }).join("")
+            }
+          </div>
 
-      <input
-        class="game-answer game-input"
-        type="text"
-        autocomplete="off"
-        autocapitalize="none"
-        placeholder="What is the word?"
-        aria-label="Your four pictures one word answer"
-      >
+          ${
+            game.hint
+              ? `
+                <p class="small">
+                  <strong>Hint:</strong> ${escapeHTML(game.hint)}
+                </p>
+              `
+              : ""
+          }
 
-      <button class="game-submit primary-btn" type="button">
-        Check Answer
-      </button>
+          <input
+            class="game-answer game-input"
+            type="text"
+            autocomplete="off"
+            autocapitalize="none"
+            placeholder="What is the word?"
+            aria-label="Your four pictures one word answer"
+          >
 
-      <div class="game-message" aria-live="polite"></div>
-    </div>
-  `;
-}
+          <button class="game-submit primary-btn" type="button">
+            Check Answer
+          </button>
+
+          <div class="game-message" aria-live="polite"></div>
+        </div>
+      `;
+    }
 
     /* MINI CROSSWORD */
 
@@ -1805,6 +1771,28 @@ if (game.type === "fourPics") {
       return total + (answers[index] === question.correct ? 1 : 0);
     }, 0);
 
+    // Test Mode must never write to official responses, respondentCodes, or leaderboards.
+    if (session.mode === "test") {
+      const testResult = {
+        respondentCode: session.code,
+        displayName: session.nickname || "Test User",
+        set: "TEST MODE",
+        articleId: session.articleId,
+        answers,
+        score,
+        totalQuestions: 5,
+        percentage: score * 20,
+        points: score * 20,
+        submittedAt: new Date().toISOString(),
+        status: "Test completed",
+        testMode: true
+      };
+      playSound("complete.mp3");
+      showConfetti();
+      await renderResult(testResult);
+      return;
+    }
+
     const responseData = {
       respondentCode: session.code,
       set: session.set,
@@ -1942,22 +1930,25 @@ if (game.type === "fourPics") {
         </div>
 
         <div class="notice">
-          Thank you. Your response has been recorded.
-          This respondent code cannot be used for another attempt.
+          ${response.testMode
+            ? `TEST MODE: ${escapeHTML(response.displayName || "Test User")}, your result is only a preview. It was not saved to official research records or the leaderboard. You may test again using the same nickname.`
+            : "Thank you. Your response has been recorded. This respondent code cannot be used for another attempt."}
         </div>
 
-        <section style="margin-top: 30px; text-align: left;">
-          <div class="eyebrow">Article leaderboard</div>
+        ${response.testMode ? "" : `
+          <section style="margin-top: 30px; text-align: left;">
+            <div class="eyebrow">Article leaderboard</div>
+            <h3>Top Participants · ${escapeHTML(String(response.articleId || "").replace("article", "Article "))}</h3>
+            <div id="leaderboard"><div class="notice">Loading leaderboard...</div></div>
+          </section>
+        `}
 
-          <h3>
-            Top Participants ·
-            ${escapeHTML(String(response.articleId || "").replace("article", "Article "))}
-          </h3>
-
-          <div id="leaderboard">
-            <div class="notice">Loading leaderboard...</div>
+        ${response.testMode ? `
+          <div class="action-row" style="margin-top: 22px;">
+            <button id="test-again-btn" class="primary-btn" type="button">Test another article</button>
+            <button id="test-home-btn" class="secondary-btn" type="button">Back to start</button>
           </div>
-        </section>
+        ` : ""}
 
         <p class="small" style="margin-top: 24px;">
           Correct answers are not displayed in the respondent interface.
@@ -1965,7 +1956,13 @@ if (game.type === "fourPics") {
       </section>
     `;
 
-    try {
+    if (response.testMode) {
+      document.querySelector("#test-again-btn")?.addEventListener("click", renderWelcome);
+      document.querySelector("#test-home-btn")?.addEventListener("click", renderWelcome);
+      return;
+    }
+
+    if (!response.testMode) try {
       const leaderboardQuery = query(
         collection(db, "leaderboards", response.articleId, "entries"),
         orderBy("points", "desc"),
