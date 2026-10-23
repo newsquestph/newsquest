@@ -733,7 +733,17 @@
         } else if (error.message === "INVALID_ARTICLE_SELECTION") {
           messageBox.innerHTML = setMessage("Please select a valid article.");
         } else {
-          messageBox.innerHTML = setMessage("Something went wrong while connecting to NewsQuest. Please try again.");
+          console.error("Start respondent failed details:", {
+            code: error?.code || "unknown",
+            message: error?.message || String(error),
+            name: error?.name || "Error"
+          });
+          const detail = error?.code === "permission-denied"
+            ? "Firebase denied access while saving this session. Check Firestore rules for the participants collection."
+            : error?.message === "ARTICLE_NOT_FOUND"
+              ? "This article could not be found in Firestore."
+              : `Connection/session error (${error?.code || error?.message || "unknown"}). Please try again.`;
+          messageBox.innerHTML = setMessage(detail);
         }
       }
     }
