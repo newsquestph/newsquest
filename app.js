@@ -1050,28 +1050,39 @@ if (
   }
 }
 
-      function markGameCorrect() {
-        showConfetti();
-        playSound("correct.mp3");
-        gameContainer.dataset.gameComplete = "true";
-        
-        message.innerHTML = setMessage(
-          "Correct! Great job. You can now continue reading.",
-          "success"
-        );
+    
+function markGameCorrect() {
+  const gameBox = gameContainer.querySelector(".game-box");
 
-        button.disabled = true;
+  if (gameBox) {
+    gameBox.classList.remove("nq-game-shake");
+    gameBox.classList.add("nq-game-won");
+  }
 
-        gameContainer.querySelectorAll("input").forEach(input => {
-          input.disabled = true;
-        });
+  showConfetti();
+  playSound("correct.mp3");
 
-        gameContainer.querySelectorAll(".nq-crossword-status").forEach(status => {
-          status.classList.add("is-correct");
-        });
+  // Keep the existing completion tracking.
+  gameContainer.dataset.gameComplete = "true";
 
-        unlockGamePage();
-      }
+  message.innerHTML = setMessage(
+    "Correct! Great job. You can now continue reading.",
+    "success"
+  );
+
+  button.disabled = true;
+
+  gameContainer.querySelectorAll("input").forEach(input => {
+    input.disabled = true;
+  });
+
+  gameContainer.querySelectorAll(".nq-crossword-status").forEach(status => {
+    status.classList.add("is-correct");
+  });
+
+  // Keep the existing paragraph/page progression.
+  unlockGamePage();
+}
 
       /* JUMBLED WORDS AND 4 PICS 1 WORD */
 
@@ -1101,14 +1112,27 @@ if (
             return;
           }
 
-          if (userAnswer === correctAnswer) {
-            markGameCorrect();
-          } else {
-            playSound("wrong.mp3");
-            message.innerHTML = setMessage(
-              "Not quite. Try again."
-            );
-          }
+       
+if (userAnswer === correctAnswer) {
+  markGameCorrect();
+} else {
+  playSound("wrong.mp3");
+
+  const gameBox = gameContainer.querySelector(".game-box");
+
+  if (gameBox) {
+    gameBox.classList.remove("nq-game-shake");
+
+    // Restart the shake animation for every wrong attempt.
+    void gameBox.offsetWidth;
+
+    gameBox.classList.add("nq-game-shake");
+  }
+
+  message.innerHTML = setMessage(
+    "Not quite. Try again."
+  );
+}
         });
 
         input.addEventListener("keydown", event => {
@@ -1174,10 +1198,21 @@ if (
           if (allCorrect && answeredCount === crosswordInputs.length) {
             markGameCorrect();
           } else {
-            playSound("wrong.mp3");
-            message.innerHTML = setMessage(
-              "Some answers are missing or incorrect. Check each clue and try again."
-            );
+         
+playSound("wrong.mp3");
+
+const gameBox = gameContainer.querySelector(".game-box");
+
+if (gameBox) {
+  gameBox.classList.remove("nq-game-shake");
+  void gameBox.offsetWidth;
+  gameBox.classList.add("nq-game-shake");
+}
+
+message.innerHTML = setMessage(
+  "Some answers are missing or incorrect. Check each clue and try again."
+);
+
           }
         });
 
