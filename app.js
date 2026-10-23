@@ -1487,7 +1487,7 @@
             ${Array.from({length: Array.from(String(game.answer || "").replace(/\s/g, "")).length}, (_, index) => `<button type="button" class="nq-answer-slot" data-slot="${index}" aria-label="Empty answer letter ${index + 1}">＿</button>`).join("")}
           </div>
           <div class="nq-game-letter-bank" aria-label="Letter tiles">
-            ${Array.from(String(game.scrambled || game.answer || "").replace(/\s/g, "")).map((character, index) => `<button type="button" class="nq-game-letter nq-letter-tile" data-letter="${escapeAttr(character)}" data-tile-id="tile-${index}">${escapeHTML(character)}</button>`).join("")}
+            ${fourPicsLetters.map((character, index) => `<button type="button" class="nq-game-letter nq-letter-tile" data-letter="${escapeAttr(character)}" data-tile-id="tile-${index}">${escapeHTML(character)}</button>`).join("")}
           </div>
           <input class="game-answer game-input" type="hidden" aria-label="Selected answer">
           <button class="game-submit primary-btn" type="button">Check Answer</button>
