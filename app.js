@@ -1107,7 +1107,7 @@
 
         button.disabled = true;
 
-        gameContainer.querySelectorAll("input").forEach(input => {
+        gameContainer.querySelectorAll("input, .nq-letter-tile, .nq-answer-slot").forEach(input => {
           input.disabled = true;
         });
 
@@ -1219,10 +1219,22 @@
 
               if (status) {
                 status.textContent = userAnswer
-                  ? "Check this answer and try again."
+                  ? "Incorrect. The letters were cleared; try again."
                   : "Answer this clue.";
                 status.classList.remove("is-correct");
                 status.classList.add("is-wrong");
+              }
+              const wordBox = input.closest(".nq-crossword-word");
+              if (wordBox && userAnswer) {
+                wordBox.querySelectorAll(".nq-answer-slot").forEach(slot => {
+                  const tile = wordBox.querySelector(`[data-tile-id="${slot.dataset.tileId}"]`);
+                  if (tile) tile.disabled = false;
+                  delete slot.dataset.letter;
+                  delete slot.dataset.tileId;
+                  slot.textContent = "＿";
+                  slot.classList.remove("is-filled");
+                });
+                input.value = "";
               }
             } else if (status) {
               status.textContent = "Correct";
@@ -1241,13 +1253,43 @@
           }
         });
 
-        crosswordInputs.forEach(input => {
-          input.addEventListener("keydown", event => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              button.click();
+        /* Crossword letter tiles fill each clue's answer boxes. */
+        gameContainer.querySelectorAll(".nq-crossword-word").forEach(wordBox => {
+          const wordIndex = wordBox.dataset.crosswordWord;
+          const input = wordBox.querySelector(".nq-crossword-answer");
+          const slots = Array.from(wordBox.querySelectorAll(".nq-answer-slot"));
+          const tiles = Array.from(wordBox.querySelectorAll(".nq-letter-tile"));
+          const status = wordBox.querySelector(".nq-crossword-status");
+          const syncWord = () => {
+            input.value = slots.map(slot => slot.dataset.letter || "").join("");
+            slots.forEach((slot, index) => {
+              slot.textContent = slot.dataset.letter || "＿";
+              slot.classList.toggle("is-filled", Boolean(slot.dataset.letter));
+              slot.setAttribute("aria-label", `Letter ${index + 1}: ${slot.dataset.letter || "empty"}`);
+            });
+            if (status && !status.classList.contains("is-correct")) {
+              status.textContent = "";
+              status.classList.remove("is-wrong");
             }
-          });
+          };
+          tiles.forEach(tile => tile.addEventListener("click", () => {
+            if (tile.disabled) return;
+            const slot = slots.find(item => !item.dataset.letter);
+            if (!slot) return;
+            slot.dataset.letter = tile.dataset.letter;
+            slot.dataset.tileId = tile.dataset.tileId;
+            tile.disabled = true;
+            syncWord();
+          }));
+          slots.forEach(slot => slot.addEventListener("click", () => {
+            if (!slot.dataset.letter) return;
+            const tile = tiles.find(item => item.dataset.tileId === slot.dataset.tileId);
+            if (tile) tile.disabled = false;
+            delete slot.dataset.letter;
+            delete slot.dataset.tileId;
+            syncWord();
+          }));
+          syncWord();
         });
       }
     });
@@ -1567,29 +1609,26 @@
           const answerLength = word.answer.replace(/\s/g, "").length;
 
           return `
-            <div class="nq-crossword-clue">
-              <label for="crossword-answer-${word.originalIndex}">
+            <div class="nq-crossword-clue nq-crossword-word" data-crossword-word="${word.originalIndex}">
+              <label>
                 ${number}. ${escapeHTML(word.clue)}
                 <span class="small">(${answerLength} letters)</span>
               </label>
 
+              <div class="nq-answer-slots" aria-label="Answer boxes for clue ${number}">
+                ${Array.from({length: answerLength}, (_, index) => `<button type="button" class="nq-answer-slot" data-slot="${index}" aria-label="Empty letter ${index + 1}">＿</button>`).join("")}
+              </div>
+              <div class="nq-game-letter-bank" aria-label="Letter tiles for clue ${number}">
+                ${Array.from(word.answer.replace(/\s/g, "")).map((character, index, source) => ({character, index, sort: Math.random()})).sort((a,b) => a.sort-b.sort).map(item => `<button type="button" class="nq-game-letter nq-letter-tile" data-letter="${escapeAttr(item.character)}" data-tile-id="cw-${word.originalIndex}-${item.index}">${escapeHTML(item.character)}</button>`).join("")}
+              </div>
               <input
                 id="crossword-answer-${word.originalIndex}"
                 class="nq-crossword-answer"
                 data-word-index="${word.originalIndex}"
-                type="text"
-                autocomplete="off"
-                autocapitalize="characters"
-                spellcheck="false"
-                placeholder="Enter answer"
+                type="hidden"
                 aria-label="Crossword clue ${number}"
               >
-
-              <div
-                class="nq-crossword-status"
-                data-word-status="${word.originalIndex}"
-                aria-live="polite"
-              ></div>
+              <div class="nq-crossword-status" data-word-status="${word.originalIndex}" aria-live="polite"></div>
             </div>
           `;
         }).join("");
