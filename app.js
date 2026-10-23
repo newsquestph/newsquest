@@ -1228,6 +1228,9 @@
               delete slot.dataset.letter;
               delete slot.dataset.tileId;
             });
+            // Wrong answers never consume an attempt; keep every tile and the check button usable.
+            tiles.forEach(tile => { tile.disabled = false; });
+            button.disabled = false;
             syncTiles();
             message.innerHTML = setMessage("Not quite. The letters were cleared. Try again.");
           }
@@ -1303,9 +1306,18 @@
           if (allCorrect && answeredCount === crosswordInputs.length) {
             markGameCorrect();
           } else {
+            // Crossword remains open for unlimited retries until every clue is correct.
+            button.disabled = false;
+            crosswordInputs.forEach(input => {
+              const wordIndex = Number(input.dataset.wordIndex);
+              const status = gameContainer.querySelector(`[data-word-status="${wordIndex}"]`);
+              if (!input.value && status && !status.classList.contains("is-correct")) {
+                status.classList.remove("is-correct");
+              }
+            });
             playSound("wrong.mp3");
             message.innerHTML = setMessage(
-              "Some answers are missing or incorrect. Check each clue and try again."
+              "Some answers are missing or incorrect. You can keep trying until every clue is correct."
             );
           }
         });
