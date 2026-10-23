@@ -504,35 +504,71 @@
       renderTestArticleSelection("Aninag");
       return;
     }
-    await startRespondent(nickname, message);
+    await renderRespondentArticleSelection(nickname, message);
   }
 
-  async function renderTestArticleSelection(nickname) {
+  async function renderRespondentArticleSelection(nickname, message) {
+    const nicknameKey = nicknameDocumentId(nickname);
+    const participantRef = doc(db, "participants", nicknameKey);
+    const responseRef = doc(db, "responses", nicknameKey);
+
+    try {
+      if (message) message.innerHTML = setMessage("Checking nickname...", "notice");
+      const [participantSnapshot, responseSnapshot] = await Promise.all([
+        getDoc(participantRef),
+        getDoc(responseRef)
+      ]);
+
+      if (
+        (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") ||
+        responseSnapshot.exists()
+      ) {
+        if (message) message.innerHTML = setMessage("This nickname has already submitted a response. Please use a different nickname.");
+        return;
+      }
+
+      const existing = participantSnapshot.exists() ? participantSnapshot.data() : null;
+      if (existing && existing.articleId) {
+        // An unfinished participant must continue the article already assigned to them.
+        await renderArticleSelection(nickname, "official", [existing.articleId]);
+      } else {
+        await renderArticleSelection(nickname, "official", ["article1", "article2", "article3"]);
+      }
+    } catch (error) {
+      console.error("Nickname check failed:", error);
+      if (message) message.innerHTML = setMessage("Something went wrong while checking this nickname. Please try again.");
+    }
+  }
+
+  async function renderArticleSelection(nickname, mode, availableIds) {
+    const isTestMode = mode === "test";
     const root = getAppRoot();
+    const idPrefix = isTestMode ? "test" : "respondent";
+    const label = isTestMode ? "Test Mode" : "Research Session";
     root.innerHTML = `
       <section class="card" style="max-width:900px;margin:0 auto;">
-        <div class="eyebrow">Test Mode · ${escapeHTML(nickname)}</div>
+        <div class="eyebrow">${label} · ${escapeHTML(nickname)}</div>
         <h1>Choose an article</h1>
-        <p class="lead">Tap a title tab to preview the story you want to read.</p>
-        <div id="test-article-tabs" role="tablist" aria-label="Available articles" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:24px;border-bottom:1px solid #d9e5d4;padding-bottom:10px;">
+        <p class="lead">Select a title tab to preview the article you will read.</p>
+        <div id="${idPrefix}-article-tabs" role="tablist" aria-label="Available articles" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:24px;border-bottom:1px solid #d9e5d4;padding-bottom:10px;">
           <p class="notice">Loading article titles...</p>
         </div>
-        <section id="test-article-preview" class="card" style="margin-top:18px;padding:24px;background:#f8fbf6;border:1px solid #d9e5d4;">
+        <section id="${idPrefix}-article-preview" class="card" style="margin-top:18px;padding:24px;background:#f8fbf6;border:1px solid #d9e5d4;">
           <p class="notice">Loading selected article...</p>
         </section>
-        <div id="test-article-message" aria-live="polite"></div>
+        <div id="${idPrefix}-article-message" aria-live="polite"></div>
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;">
-          <button class="secondary-btn" id="back-to-nickname" type="button">Back</button>
-          <button class="primary-btn" id="start-selected-article" type="button" disabled>Proceed to article</button>
+          <button class="secondary-btn" id="${idPrefix}-back-to-nickname" type="button">Back</button>
+          <button class="primary-btn" id="${idPrefix}-start-selected-article" type="button" disabled>Start selected article</button>
         </div>
       </section>
     `;
 
-    document.querySelector("#back-to-nickname").addEventListener("click", renderWelcome);
-    const tabs = document.querySelector("#test-article-tabs");
-    const preview = document.querySelector("#test-article-preview");
-    const startButton = document.querySelector("#start-selected-article");
-    const availableIds = ["article1", "article2", "article3"];
+    document.querySelector(`#${idPrefix}-back-to-nickname`).addEventListener("click", renderWelcome);
+    const tabs = document.querySelector(`#${idPrefix}-article-tabs`);
+    const preview = document.querySelector(`#${idPrefix}-article-preview`);
+    const startButton = document.querySelector(`#${idPrefix}-start-selected-article`);
+    const messageBox = document.querySelector(`#${idPrefix}-article-message`);
     const loaded = [];
 
     for (const articleId of availableIds) {
@@ -544,10 +580,10 @@
       }
     }
 
-    if (!document.querySelector("#test-article-tabs")) return;
+    if (!document.querySelector(`#${idPrefix}-article-tabs`)) return;
 
     if (!loaded.length) {
-      tabs.innerHTML = setMessage("No articles could be loaded. Check the articles collection in Firestore.");
+      tabs.innerHTML = setMessage("No articles could be loaded. Please check the articles in Firestore.");
       preview.innerHTML = "";
       return;
     }
@@ -570,7 +606,7 @@
         <div class="eyebrow">Selected article</div>
         <h2 style="margin:10px 0 12px;">${escapeHTML(title)}</h2>
         <p style="margin:0;line-height:1.65;">${escapeHTML(description)}</p>
-        <p class="small" style="margin-top:16px;">You will read this article first, then answer its five-question quiz.</p>
+        <p class="small" style="margin-top:16px;">You will read this article, complete its interactive games, then answer its five-question quiz.</p>
       `;
       startButton.disabled = false;
     }
@@ -584,12 +620,25 @@
       `;
     }).join("");
 
-    tabs.querySelectorAll('[role="tab"]').forEach((tab, index) => {
-      tab.addEventListener("click", () => showSelectedArticle(loaded[index]));
+    tabs.querySelectorAll('[role="tab"]').forEach(tab => {
+      tab.addEventListener("click", () => {
+        const article = loaded.find(item => item.articleId === tab.dataset.articleId);
+        if (article) showSelectedArticle(article);
+      });
     });
 
     showSelectedArticle(selectedArticle);
-    startButton.addEventListener("click", () => startTestModeWithArticle(nickname, selectedArticle.articleId));
+    startButton.addEventListener("click", () => {
+      if (isTestMode) {
+        startTestModeWithArticle(nickname, selectedArticle.articleId);
+      } else {
+        startRespondent(nickname, selectedArticle.articleId, messageBox);
+      }
+    });
+  }
+
+  async function renderTestArticleSelection(nickname) {
+    return renderArticleSelection(nickname, "test", ["article1", "article2", "article3"]);
   }
 
   async function startTestModeWithArticle(nickname, articleId) {
@@ -625,20 +674,26 @@
      START RESPONDENT
   ========================================================= */
 
-  async function startRespondent(nickname, message) {
+  async function startRespondent(nickname, selectedArticleId, message) {
     const nicknameKey = nicknameDocumentId(nickname);
     const participantRef = doc(db, "participants", nicknameKey);
     const responseRef = doc(db, "responses", nicknameKey);
-    const messageBox = message || document.querySelector("#nickname-message");
+    const messageBox = message || document.querySelector("#respondent-article-message");
+    const buttons = document.querySelectorAll("#respondent-article-tabs [data-article-id]");
+    buttons.forEach(button => button.disabled = true);
 
     try {
-      messageBox.innerHTML = setMessage("Checking nickname and assigning your article...", "notice");
+      if (messageBox) messageBox.innerHTML = setMessage("Starting your research session...", "notice");
       let assignment = null;
 
       await runTransaction(db, async transaction => {
         const participantSnapshot = await transaction.get(participantRef);
+        const responseSnapshot = await transaction.get(responseRef);
 
-        if (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") {
+        if (
+          (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") ||
+          responseSnapshot.exists()
+        ) {
           throw new Error("NICKNAME_ALREADY_USED");
         }
 
@@ -650,14 +705,17 @@
           }
         }
 
-        const set = Math.floor(Math.random() * 3) + 1;
-        const articleId = `article${set}`;
-        assignment = { articleId, set };
+        const set = Number(String(selectedArticleId).replace("article", ""));
+        if (![1, 2, 3].includes(set) || selectedArticleId !== `article${set}`) {
+          throw new Error("INVALID_ARTICLE_SELECTION");
+        }
+
+        assignment = { articleId: selectedArticleId, set };
         transaction.set(participantRef, {
           nickname,
           nicknameKey,
-          articleId,
-          set,
+          articleId: assignment.articleId,
+          set: assignment.set,
           status: "In Progress",
           createdAt: participantSnapshot.exists() && participantSnapshot.data().createdAt
             ? participantSnapshot.data().createdAt
@@ -668,7 +726,8 @@
 
       const article = await getArticle(assignment.articleId);
       if (!Array.isArray(article.questions) || article.questions.length !== 5) {
-        messageBox.innerHTML = setMessage("The assigned article does not have exactly five questions. Please contact the researcher.");
+        if (messageBox) messageBox.innerHTML = setMessage("The selected article does not have exactly five questions. Please contact the researcher.");
+        buttons.forEach(button => button.disabled = false);
         return;
       }
 
@@ -683,11 +742,16 @@
       renderArticle(article);
     } catch (error) {
       console.error(error);
-      if (error.message === "NICKNAME_ALREADY_USED") {
-        messageBox.innerHTML = setMessage("This nickname has already submitted a response. Please use a different nickname.");
-        return;
+      buttons.forEach(button => button.disabled = false);
+      if (messageBox) {
+        if (error.message === "NICKNAME_ALREADY_USED") {
+          messageBox.innerHTML = setMessage("This nickname has already submitted a response. Please use a different nickname.");
+        } else if (error.message === "INVALID_ARTICLE_SELECTION") {
+          messageBox.innerHTML = setMessage("Please select a valid article.");
+        } else {
+          messageBox.innerHTML = setMessage("Something went wrong while connecting to NewsQuest. Please try again.");
+        }
       }
-      messageBox.innerHTML = setMessage("Something went wrong while connecting to NewsQuest. Please try again.");
     }
   }
 
