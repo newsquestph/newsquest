@@ -159,6 +159,63 @@
         font-weight: 800;
       }
 
+      .nq-answer-slots {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+        min-height: 48px;
+        margin: 16px 0 8px;
+      }
+
+      .nq-answer-slot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 43px;
+        padding: 0;
+        border: 2px solid #a8c39f;
+        border-bottom-width: 4px;
+        border-radius: 7px;
+        background: #fff;
+        color: #205b35;
+        font-size: 19px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .nq-answer-slot.is-filled {
+        background: #e5f1df;
+        border-color: #4f8a55;
+        animation: nqTilePop .16s ease-out;
+      }
+
+      .nq-letter-tile {
+        cursor: pointer;
+        transition: transform .15s ease, background .15s ease;
+      }
+
+      .nq-letter-tile:not(:disabled):hover {
+        transform: translateY(-3px);
+        background: #d5e9cb;
+      }
+
+      .nq-letter-tile:disabled {
+        opacity: .35;
+        transform: scale(.94);
+      }
+
+      .nq-crossword-answer[type="hidden"],
+      .nq-interactive-game .game-answer[type="hidden"] {
+        display: none !important;
+      }
+
+      @keyframes nqTilePop {
+        from { transform: scale(.88); }
+        to { transform: scale(1); }
+      }
+
       .four-pics-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
