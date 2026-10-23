@@ -407,44 +407,32 @@
     getAppRoot().innerHTML = `
       <section class="welcome card">
         <div class="welcome-copy">
-          <div class="eyebrow">Interactive research reading</div>
-          <h1>Read smarter. Remember more.</h1>
-          <p class="lead">
-            NewsQuest is a gamified news-reading activity.
-            Use your official respondent code for the study, or enter Test Mode
-            to preview an article and quiz without saving research results.
-          </p>
+          <div class="eyebrow">Test Mode</div>
+          <h1>Welcome to NewsQuest</h1>
+          <p class="lead">Enter a nickname to begin. You will choose an article on the next page.</p>
 
-          <form id="start-form">
-            <div class="form-group">
-              <label for="respondent-code">Official respondent code</label>
-              <input id="respondent-code" name="code" required autocomplete="off" placeholder="Example: SET1-001">
-              <p class="small">Use the unique code provided by the researcher.</p>
-            </div>
-            <div id="start-message"></div>
-            <button class="primary-btn" type="submit">Start Official Study</button>
-          </form>
-
-          <hr style="margin: 26px 0; border: 0; border-top: 1px solid #d9e5d4;">
-
-          <form id="test-mode-form">
-            <div class="eyebrow">Test mode · no research data saved</div>
+          <form id="test-nickname-form">
             <div class="form-group">
               <label for="test-nickname">Nickname</label>
               <input id="test-nickname" name="nickname" autocomplete="off" maxlength="40" placeholder="Enter any nickname" required>
             </div>
-            <div class="form-group">
-              <label for="test-article">Choose an article</label>
-              <select id="test-article" name="articleId" required>
-                <option value="article1">Article 1</option>
-                <option value="article2">Article 2</option>
-                <option value="article3">Article 3</option>
-              </select>
-            </div>
-            <div id="test-mode-message" aria-live="polite"></div>
-            <button class="primary-btn" type="submit">Preview Article and Quiz</button>
-            <p class="small">You can reuse the same nickname and repeat tests. Test attempts are not saved to official responses or leaderboards.</p>
+            <div id="test-nickname-message" aria-live="polite"></div>
+            <button class="primary-btn" type="submit">Proceed</button>
+            <p class="small">Test Mode only. Your attempts will not be saved to official research responses or leaderboards.</p>
           </form>
+
+          <details style="margin-top:22px;">
+            <summary style="cursor:pointer;font-weight:600;">Official study participant? Enter respondent code</summary>
+            <form id="start-form" style="margin-top:14px;">
+              <div class="form-group">
+                <label for="respondent-code">Official respondent code</label>
+                <input id="respondent-code" name="code" autocomplete="off" placeholder="Example: SET1-001" required>
+                <p class="small">Use the unique code provided by the researcher.</p>
+              </div>
+              <div id="start-message"></div>
+              <button class="primary-btn" type="submit">Start Official Study</button>
+            </form>
+          </details>
         </div>
 
         <div class="welcome-art" aria-hidden="true">
@@ -455,26 +443,120 @@
       </section>
     `;
 
+    document.querySelector("#test-nickname-form").addEventListener("submit", proceedToTestArticleSelection);
     document.querySelector("#start-form").addEventListener("submit", startRespondent);
-    document.querySelector("#test-mode-form").addEventListener("submit", startTestMode);
   }
 
-  async function startTestMode(event) {
+  async function proceedToTestArticleSelection(event) {
     event.preventDefault();
     const nickname = document.querySelector("#test-nickname").value.trim();
-    const articleId = document.querySelector("#test-article").value;
-    const message = document.querySelector("#test-mode-message");
+    const message = document.querySelector("#test-nickname-message");
 
     if (!nickname) {
       message.innerHTML = setMessage("Please enter a nickname.");
       return;
     }
 
+    message.innerHTML = setMessage("Loading article titles...", "notice");
+    renderTestArticleSelection(nickname);
+  }
+
+  async function renderTestArticleSelection(nickname) {
+    const root = getAppRoot();
+    root.innerHTML = `
+      <section class="card" style="max-width:900px;margin:0 auto;">
+        <div class="eyebrow">Test Mode · ${escapeHTML(nickname)}</div>
+        <h1>Choose an article</h1>
+        <p class="lead">Tap a title tab to preview the story you want to read.</p>
+        <div id="test-article-tabs" role="tablist" aria-label="Available articles" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:24px;border-bottom:1px solid #d9e5d4;padding-bottom:10px;">
+          <p class="notice">Loading article titles...</p>
+        </div>
+        <section id="test-article-preview" class="card" style="margin-top:18px;padding:24px;background:#f8fbf6;border:1px solid #d9e5d4;">
+          <p class="notice">Loading selected article...</p>
+        </section>
+        <div id="test-article-message" aria-live="polite"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;">
+          <button class="secondary-btn" id="back-to-nickname" type="button">Back</button>
+          <button class="primary-btn" id="start-selected-article" type="button" disabled>Proceed to article</button>
+        </div>
+      </section>
+    `;
+
+    document.querySelector("#back-to-nickname").addEventListener("click", renderWelcome);
+    const tabs = document.querySelector("#test-article-tabs");
+    const preview = document.querySelector("#test-article-preview");
+    const startButton = document.querySelector("#start-selected-article");
+    const availableIds = ["article1", "article2", "article3"];
+    const loaded = [];
+
+    for (const articleId of availableIds) {
+      try {
+        const article = await getArticle(articleId);
+        loaded.push({ ...article, articleId: article.articleId || articleId });
+      } catch (error) {
+        console.warn(`Could not load ${articleId}:`, error);
+      }
+    }
+
+    if (!document.querySelector("#test-article-tabs")) return;
+
+    if (!loaded.length) {
+      tabs.innerHTML = setMessage("No articles could be loaded. Check the articles collection in Firestore.");
+      preview.innerHTML = "";
+      return;
+    }
+
+    let selectedArticle = loaded[0];
+
+    function showSelectedArticle(article) {
+      selectedArticle = article;
+      tabs.querySelectorAll('[role="tab"]').forEach(tab => {
+        const isSelected = tab.dataset.articleId === article.articleId;
+        tab.setAttribute("aria-selected", String(isSelected));
+        tab.style.background = isSelected ? "#315b3c" : "#ffffff";
+        tab.style.color = isSelected ? "#ffffff" : "#315b3c";
+        tab.style.borderColor = isSelected ? "#315b3c" : "#d9e5d4";
+      });
+
+      const title = String(article.title || article.headline || article.name || "Untitled article");
+      const description = String(article.description || article.summary || "Read this story and answer its quiz.");
+      preview.innerHTML = `
+        <div class="eyebrow">Selected article</div>
+        <h2 style="margin:10px 0 12px;">${escapeHTML(title)}</h2>
+        <p style="margin:0;line-height:1.65;">${escapeHTML(description)}</p>
+        <p class="small" style="margin-top:16px;">You will read this article first, then answer its five-question quiz.</p>
+      `;
+      startButton.disabled = false;
+    }
+
+    tabs.innerHTML = loaded.map((article, index) => {
+      const title = String(article.title || article.headline || article.name || `Article ${index + 1}`);
+      return `
+        <button type="button" role="tab" aria-selected="false" data-article-id="${escapeAttr(article.articleId)}" style="appearance:none;border:1px solid #d9e5d4;border-radius:999px;padding:11px 18px;background:#fff;color:#315b3c;font:inherit;font-weight:600;cursor:pointer;max-width:100%;">
+          ${escapeHTML(title)}
+        </button>
+      `;
+    }).join("");
+
+    tabs.querySelectorAll('[role="tab"]').forEach((tab, index) => {
+      tab.addEventListener("click", () => showSelectedArticle(loaded[index]));
+    });
+
+    showSelectedArticle(selectedArticle);
+    startButton.addEventListener("click", () => startTestModeWithArticle(nickname, selectedArticle.articleId));
+  }
+
+  async function startTestModeWithArticle(nickname, articleId) {
+    const message = document.querySelector("#test-article-message");
+    const buttons = document.querySelectorAll("[data-article-id]");
+    buttons.forEach(button => button.disabled = true);
+
     try {
-      message.innerHTML = setMessage("Loading selected article...", "notice");
+      if (message) message.innerHTML = setMessage("Opening selected article...", "notice");
       const article = await getArticle(articleId);
       if (!Array.isArray(article.questions) || article.questions.length !== 5) {
-        message.innerHTML = setMessage("This article must have exactly five quiz questions before it can be tested.");
+        if (message) message.innerHTML = setMessage("This article must have exactly five quiz questions before it can be tested.");
+        buttons.forEach(button => button.disabled = false);
         return;
       }
 
@@ -489,7 +571,8 @@
       renderArticle(article);
     } catch (error) {
       console.error("Test Mode article load failed:", error);
-      message.innerHTML = setMessage("Could not load that article. Check that the article exists in Firestore as article1, article2, or article3.");
+      if (message) message.innerHTML = setMessage("Could not open that article. Please try again.");
+      buttons.forEach(button => button.disabled = false);
     }
   }
 
