@@ -1140,3 +1140,30 @@ th {
     height: 120px;
   }
 }
+/* Four Pics 1 Word layout fix */
+.four-pics-grid .four-pics-tile {
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--green-light);
+}
+
+.four-pics-grid .four-pics-tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.four-pics-grid .four-pics-tile .nq-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  text-align: center;
+}
