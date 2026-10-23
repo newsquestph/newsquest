@@ -650,13 +650,19 @@
       }
     }
 
-    if (currentParagraphs.length > 0) {
-      pages.push({
-        paragraphs: currentParagraphs,
-        game: null,
-        gamePosition: null
-      });
-    }
+// Always create a final page after the last game.
+// This allows the participant to reach the final quiz
+// even when a game is placed after the last paragraph.
+if (
+  currentParagraphs.length > 0 ||
+  (pages.length > 0 && pages[pages.length - 1].game)
+) {
+  pages.push({
+    paragraphs: currentParagraphs,
+    game: null,
+    gamePosition: null
+  });
+}
 
     if (pages.length === 0) {
       pages.push({
@@ -1223,81 +1229,79 @@
       `;
     }
 
-    /* 4 PICS 1 WORD */
+/* 4 PICS 1 WORD */
 
-    if (game.type === "fourPics") {
-      const images = Array.isArray(game.images)
-        ? game.images.slice(0, 4)
-        : [];
+if (game.type === "fourPics") {
+  const images = Array.isArray(game.images)
+    ? game.images.slice(0, 4)
+    : [];
 
-      return `
-        <div class="game-box">
-          <div class="eyebrow">Interactive Game</div>
-          <h3>4 Pics 1 Word</h3>
+  while (images.length < 4) images.push("");
 
-          <p class="small">
-            Look at the four pictures and find the word they have in common.
-          </p>
+  return `
+    <div class="game-box">
+      <div class="eyebrow">Interactive Game</div>
+      <h3>4 Pics 1 Word</h3>
 
-          <div class="four-pics-grid">
-            ${
-              images.map((image, index) => {
-                const imageUrl = String(image || "").trim();
+      <p class="small">
+        Look at the four pictures and find the word they have in common.
+      </p>
 
-                if (!imageUrl) {
-                  return `
-                    <div class="nq-image-placeholder">
-                      Image ${index + 1}
-                    </div>
-                  `;
+      <div class="four-pics-grid">
+        ${images.map((image, index) => {
+          const imageUrl = String(image || "").trim();
+
+          return `
+            <div class="four-pics-tile">
+              ${
+                imageUrl
+                  ? `<img
+                      src="${escapeAttr(imageUrl)}"
+                      alt="Picture ${index + 1}"
+                      loading="lazy"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    >`
+                  : ""
+              }
+
+              <div
+                class="nq-image-placeholder"
+                style="${imageUrl ? "display:none;" : ""}"
+              >
+                ${
+                  imageUrl
+                    ? "Image unavailable"
+                    : `Image ${index + 1} not set`
                 }
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
 
-                return `
-                  <img
-                    src="${escapeAttr(imageUrl)}"
-                    alt="Picture ${index + 1}"
-                    class="game-image"
-                    loading="lazy"
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                  >
-                  <div
-                    class="nq-image-placeholder"
-                    style="display:none"
-                  >
-                    Image unavailable
-                  </div>
-                `;
-              }).join("")
-            }
-          </div>
+      ${
+        game.hint
+          ? `<p class="small"><strong>Hint:</strong> ${escapeHTML(game.hint)}</p>`
+          : ""
+      }
 
-          ${
-            game.hint
-              ? `
-                <p class="small">
-                  <strong>Hint:</strong> ${escapeHTML(game.hint)}
-                </p>
-              `
-              : ""
-          }
+      <input
+        class="game-answer game-input"
+        type="text"
+        autocomplete="off"
+        autocapitalize="none"
+        placeholder="What is the word?"
+        aria-label="Your four pictures one word answer"
+      >
 
-          <input
-            class="game-answer game-input"
-            type="text"
-            autocomplete="off"
-            autocapitalize="none"
-            placeholder="What is the word?"
-            aria-label="Your four pictures one word answer"
-          >
+      <button class="game-submit primary-btn" type="button">
+        Check Answer
+      </button>
 
-          <button class="game-submit primary-btn" type="button">
-            Check Answer
-          </button>
-
-          <div class="game-message" aria-live="polite"></div>
-        </div>
-      `;
-    }
+      <div class="game-message" aria-live="polite"></div>
+    </div>
+  `;
+}
 
     /* MINI CROSSWORD */
 
