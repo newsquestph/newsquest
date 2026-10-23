@@ -1118,50 +1118,65 @@
         unlockGamePage();
       }
 
-      /* JUMBLED WORDS AND 4 PICS 1 WORD */
+      /* TILE-BASED JUMBLED WORDS AND 4 PICS 1 WORD */
 
-      if (
-        game.type === "jumbled" ||
-        game.type === "fourPics"
-      ) {
+      if (game.type === "jumbled" || game.type === "fourPics") {
         const input = gameContainer.querySelector(".game-answer");
+        const slots = Array.from(gameContainer.querySelectorAll(".nq-answer-slot"));
+        const tiles = Array.from(gameContainer.querySelectorAll(".nq-letter-tile"));
+        if (!input || !slots.length || !tiles.length) return;
 
-        if (!input) return;
+        function syncTiles() {
+          input.value = slots.map(slot => slot.dataset.letter || "").join("");
+          slots.forEach((slot, index) => {
+            slot.textContent = slot.dataset.letter || "＿";
+            slot.classList.toggle("is-filled", Boolean(slot.dataset.letter));
+            slot.setAttribute("aria-label", `Answer letter ${index + 1}: ${slot.dataset.letter || "empty"}`);
+          });
+        }
+
+        tiles.forEach(tile => tile.addEventListener("click", () => {
+          if (tile.disabled) return;
+          const emptySlot = slots.find(slot => !slot.dataset.letter);
+          if (!emptySlot) return;
+          emptySlot.dataset.letter = tile.dataset.letter || tile.textContent.trim();
+          emptySlot.dataset.tileId = tile.dataset.tileId;
+          tile.disabled = true;
+          syncTiles();
+          message.textContent = "";
+        }));
+
+        slots.forEach(slot => slot.addEventListener("click", () => {
+          if (!slot.dataset.letter) return;
+          const tile = tiles.find(item => item.dataset.tileId === slot.dataset.tileId);
+          if (tile) tile.disabled = false;
+          delete slot.dataset.letter;
+          delete slot.dataset.tileId;
+          syncTiles();
+        }));
 
         button.addEventListener("click", () => {
           const userAnswer = normalizeAnswer(input.value);
           const correctAnswer = normalizeAnswer(game.answer);
-
-          if (!userAnswer) {
-            message.innerHTML = setMessage(
-              "Please enter your answer first."
-            );
-            return;
-          }
-
           if (!correctAnswer) {
-            message.innerHTML = setMessage(
-              "This game does not have an answer configured. Please inform the researcher."
-            );
+            message.innerHTML = setMessage("This game does not have an answer configured. Please inform the researcher.");
             return;
           }
-
           if (userAnswer === correctAnswer) {
             markGameCorrect();
           } else {
             playSound("wrong.mp3");
-            message.innerHTML = setMessage(
-              "Not quite. Try again."
-            );
+            slots.forEach(slot => {
+              const tile = tiles.find(item => item.dataset.tileId === slot.dataset.tileId);
+              if (tile) tile.disabled = false;
+              delete slot.dataset.letter;
+              delete slot.dataset.tileId;
+            });
+            syncTiles();
+            message.innerHTML = setMessage("Not quite. The letters were cleared. Try again.");
           }
         });
-
-        input.addEventListener("keydown", event => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            button.click();
-          }
-        });
+        syncTiles();
       }
 
       /* MINI CROSSWORD */
@@ -1258,64 +1273,25 @@
   function renderReaderGame(game) {
     if (!game || !game.type) return "";
 
-    /* JUMBLED WORDS */
+    /* JUMBLED WORDS: tap letters in spelling order */
 
     if (game.type === "jumbled") {
-      const answerLetters = Array.from(
-        String(game.answer || "")
-          .replace(/\s/g, "")
-      );
-
+      const letters = Array.from(String(game.scrambled || game.answer || "").replace(/\s/g, ""));
+      const answerLength = Array.from(String(game.answer || "").replace(/\s/g, "")).length;
       return `
-        <div class="game-box">
+        <div class="game-box nq-tile-puzzle">
           <div class="eyebrow">Interactive Game</div>
           <h3>Jumbled Words</h3>
-
-          <p class="small">
-            Unscramble the letters to find the correct word.
-          </p>
-
-          <div class="nq-game-letter-bank" aria-label="Jumbled letters">
-            ${
-              Array.from(String(game.scrambled || ""))
-                .filter(character => !/\s/.test(character))
-                .map(character => `
-                  <span class="nq-game-letter">
-                    ${escapeHTML(character)}
-                  </span>
-                `)
-                .join("") ||
-              answerLetters.map(character => `
-                <span class="nq-game-letter">
-                  ${escapeHTML(character)}
-                </span>
-              `).join("")
-            }
+          <p class="small">Tap the letter tiles in the correct spelling order. Tap an answer box to remove a letter.</p>
+          <div class="nq-answer-slots" aria-label="Answer boxes">
+            ${Array.from({length: answerLength}, (_, index) => `<button type="button" class="nq-answer-slot" data-slot="${index}" aria-label="Empty answer letter ${index + 1}">＿</button>`).join("")}
           </div>
-
-          ${
-            game.hint
-              ? `
-                <p class="small">
-                  <strong>Hint:</strong> ${escapeHTML(game.hint)}
-                </p>
-              `
-              : ""
-          }
-
-          <input
-            class="game-answer game-input"
-            type="text"
-            autocomplete="off"
-            autocapitalize="none"
-            placeholder="Type your answer"
-            aria-label="Your jumbled word answer"
-          >
-
-          <button class="game-submit primary-btn" type="button">
-            Check Answer
-          </button>
-
+          <div class="nq-game-letter-bank" aria-label="Letter tiles">
+            ${letters.map((character, index) => `<button type="button" class="nq-game-letter nq-letter-tile" data-letter="${escapeAttr(character)}" data-tile-id="tile-${index}">${escapeHTML(character)}</button>`).join("")}
+          </div>
+          ${game.hint ? `<p class="small"><strong>Hint:</strong> ${escapeHTML(game.hint)}</p>` : ""}
+          <input class="game-answer game-input" type="hidden" aria-label="Selected answer">
+          <button class="game-submit primary-btn" type="button">Check Answer</button>
           <div class="game-message" aria-live="polite"></div>
         </div>
       `;
@@ -1379,18 +1355,14 @@
               : ""
           }
 
-          <input
-            class="game-answer game-input"
-            type="text"
-            autocomplete="off"
-            autocapitalize="none"
-            placeholder="What is the word?"
-            aria-label="Your four pictures one word answer"
-          >
-
-          <button class="game-submit primary-btn" type="button">
-            Check Answer
-          </button>
+          <div class="nq-answer-slots" aria-label="Answer boxes">
+            ${Array.from({length: Array.from(String(game.answer || "").replace(/\s/g, "")).length}, (_, index) => `<button type="button" class="nq-answer-slot" data-slot="${index}" aria-label="Empty answer letter ${index + 1}">＿</button>`).join("")}
+          </div>
+          <div class="nq-game-letter-bank" aria-label="Letter tiles">
+            ${Array.from(String(game.scrambled || game.answer || "").replace(/\s/g, "")).map((character, index) => `<button type="button" class="nq-game-letter nq-letter-tile" data-letter="${escapeAttr(character)}" data-tile-id="tile-${index}">${escapeHTML(character)}</button>`).join("")}
+          </div>
+          <input class="game-answer game-input" type="hidden" aria-label="Selected answer">
+          <button class="game-submit primary-btn" type="button">Check Answer</button>
 
           <div class="game-message" aria-live="polite"></div>
         </div>
