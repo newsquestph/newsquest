@@ -1310,7 +1310,31 @@
           }
         });
 
-        /* Crossword letter tiles fill each clue's answer boxes. */
+        /* Crossword letter tiles fill the answer boxes and the crossword grid. */
+        function syncCrosswordGrid() {
+          const grid = gameContainer.querySelector(".nq-crossword-grid");
+          if (!grid) return;
+          const letterByCell = new Map();
+          gameContainer.querySelectorAll(".nq-crossword-word").forEach(wordBox => {
+            const startRow = Number(wordBox.dataset.row);
+            const startColumn = Number(wordBox.dataset.column);
+            const direction = wordBox.dataset.direction;
+            wordBox.querySelectorAll(".nq-answer-slot").forEach((slot, index) => {
+              if (!slot.dataset.letter) return;
+              const row = startRow + (direction === "down" ? index : 0);
+              const column = startColumn + (direction === "across" ? index : 0);
+              const key = `${row},${column}`;
+              if (!letterByCell.has(key)) letterByCell.set(key, slot.dataset.letter);
+            });
+          });
+          grid.querySelectorAll(".nq-crossword-cell[data-row]").forEach(cell => {
+            const key = `${cell.dataset.row},${cell.dataset.column}`;
+            const letter = letterByCell.get(key) || "";
+            const span = cell.querySelector(".nq-crossword-letter");
+            if (span) span.textContent = letter || " ";
+          });
+        }
+
         gameContainer.querySelectorAll(".nq-crossword-word").forEach(wordBox => {
           const wordIndex = wordBox.dataset.crosswordWord;
           const input = wordBox.querySelector(".nq-crossword-answer");
@@ -1328,6 +1352,7 @@
               status.textContent = "";
               status.classList.remove("is-wrong");
             }
+            syncCrosswordGrid();
           };
           tiles.forEach(tile => tile.addEventListener("click", () => {
             if (tile.disabled) return;
@@ -1639,12 +1664,12 @@
           const cell = cells.get(cellKey(row, column));
 
           if (!cell) {
-            gridHTML += `<div class="nq-crossword-cell is-block"></div>`;
+            gridHTML += `<div class="nq-crossword-cell is-block" data-row="${row}" data-column="${column}"></div>`;
             continue;
           }
 
           gridHTML += `
-            <div class="nq-crossword-cell ${cell.numbers.length ? "is-start" : ""}">
+            <div class="nq-crossword-cell ${cell.numbers.length ? "is-start" : ""}" data-row="${row}" data-column="${column}">
               ${
                 cell.numbers.length
                   ? `<span class="nq-crossword-number">${cell.numbers[0]}</span>`
@@ -1666,7 +1691,7 @@
           const answerLength = word.answer.replace(/\s/g, "").length;
 
           return `
-            <div class="nq-crossword-clue nq-crossword-word" data-crossword-word="${word.originalIndex}">
+            <div class="nq-crossword-clue nq-crossword-word" data-crossword-word="${word.originalIndex}" data-row="${word.row}" data-column="${word.column}" data-direction="${word.direction}">
               <label>
                 ${number}. ${escapeHTML(word.clue)}
                 <span class="small">(${answerLength} letters)</span>
