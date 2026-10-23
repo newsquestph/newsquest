@@ -407,34 +407,20 @@
     getAppRoot().innerHTML = `
       <section class="welcome card">
         <div class="welcome-copy">
-          <div class="eyebrow">Test Mode</div>
+          <div class="eyebrow">NewsQuest</div>
           <h1>Welcome to NewsQuest</h1>
-          <p class="lead">Enter a nickname to begin. You will choose an article on the next page.</p>
-
-          <form id="test-nickname-form">
+          <p class="lead">Enter your nickname to begin. Keep using the same nickname if you need to continue an unfinished attempt.</p>
+          <form id="nickname-form">
             <div class="form-group">
-              <label for="test-nickname">Nickname</label>
-              <input id="test-nickname" name="nickname" autocomplete="off" maxlength="40" placeholder="Enter any nickname" required>
+              <label for="participant-nickname">Nickname</label>
+              <input id="participant-nickname" name="nickname" autocomplete="off" maxlength="40" placeholder="Enter your nickname" required>
+              <p class="small">Use a nickname you can remember. The same nickname can submit only once.</p>
             </div>
-            <div id="test-nickname-message" aria-live="polite"></div>
-            <button class="primary-btn" type="submit">Proceed</button>
-            <p class="small">Test Mode only. Your attempts will not be saved to official research responses or leaderboards.</p>
+            <div id="nickname-message" aria-live="polite"></div>
+            <button class="primary-btn" type="submit">Continue</button>
           </form>
-
-          <details style="margin-top:22px;">
-            <summary style="cursor:pointer;font-weight:600;">Official study participant? Enter respondent code</summary>
-            <form id="start-form" style="margin-top:14px;">
-              <div class="form-group">
-                <label for="respondent-code">Official respondent code</label>
-                <input id="respondent-code" name="code" autocomplete="off" placeholder="Example: SET1-001" required>
-                <p class="small">Use the unique code provided by the researcher.</p>
-              </div>
-              <div id="start-message"></div>
-              <button class="primary-btn" type="submit">Start Official Study</button>
-            </form>
-          </details>
+          <p class="small" style="margin-top:14px;">Research testing only: enter <strong>Aninag</strong> as the nickname to open Test Mode. Test results are not saved to official research records or leaderboards.</p>
         </div>
-
         <div class="welcome-art" aria-hidden="true">
           <div class="illustration"><div class="illustration-inner">
             <strong>NEWS</strong><hr><p>Read · Learn · Recall</p><span>+100 points</span>
@@ -442,23 +428,27 @@
         </div>
       </section>
     `;
-
-    document.querySelector("#test-nickname-form").addEventListener("submit", proceedToTestArticleSelection);
-    document.querySelector("#start-form").addEventListener("submit", startRespondent);
+    document.querySelector("#nickname-form").addEventListener("submit", handleNicknameEntry);
   }
 
-  async function proceedToTestArticleSelection(event) {
-    event.preventDefault();
-    const nickname = document.querySelector("#test-nickname").value.trim();
-    const message = document.querySelector("#test-nickname-message");
+  function nicknameDocumentId(nickname) {
+    return encodeURIComponent(normalizeAnswer(nickname));
+  }
 
+  async function handleNicknameEntry(event) {
+    event.preventDefault();
+    const nickname = document.querySelector("#participant-nickname").value.trim();
+    const message = document.querySelector("#nickname-message");
     if (!nickname) {
       message.innerHTML = setMessage("Please enter a nickname.");
       return;
     }
-
-    message.innerHTML = setMessage("Loading article titles...", "notice");
-    renderTestArticleSelection(nickname);
+    if (normalizeAnswer(nickname) === "aninag") {
+      message.innerHTML = setMessage("Opening Test Mode...", "notice");
+      renderTestArticleSelection("Aninag");
+      return;
+    }
+    await startRespondent(nickname, message);
   }
 
   async function renderTestArticleSelection(nickname) {
@@ -580,76 +570,71 @@
      START RESPONDENT
   ========================================================= */
 
-  async function startRespondent(event) {
-    event.preventDefault();
-
-    const code = document
-      .querySelector("#respondent-code")
-      .value
-      .trim()
-      .toUpperCase();
-
-    const message = document.querySelector("#start-message");
+  async function startRespondent(nickname, message) {
+    const nicknameKey = nicknameDocumentId(nickname);
+    const participantRef = doc(db, "participants", nicknameKey);
+    const responseRef = doc(db, "responses", nicknameKey);
+    const messageBox = message || document.querySelector("#nickname-message");
 
     try {
-      message.innerHTML = setMessage(
-        "Checking your respondent code...",
-        "notice"
-      );
+      messageBox.innerHTML = setMessage("Checking nickname and assigning your article...", "notice");
+      let assignment = null;
 
-      const codeSnapshot = await getDoc(
-        doc(db, "respondentCodes", code)
-      );
+      await runTransaction(db, async transaction => {
+        const participantSnapshot = await transaction.get(participantRef);
+        const responseSnapshot = await transaction.get(responseRef);
 
-      if (!codeSnapshot.exists()) {
-        message.innerHTML = setMessage(
-          "This respondent code is not valid."
-        );
-        return;
-      }
+        if (responseSnapshot.exists() || (participantSnapshot.exists() && participantSnapshot.data().status === "Completed")) {
+          throw new Error("NICKNAME_ALREADY_USED");
+        }
 
-      const record = codeSnapshot.data();
+        if (participantSnapshot.exists()) {
+          const existing = participantSnapshot.data();
+          if (existing.articleId && existing.set) {
+            assignment = { articleId: existing.articleId, set: existing.set };
+            return;
+          }
+        }
 
-      if (record.status === "Used") {
-        message.innerHTML = setMessage(
-          "This respondent code has already been used."
-        );
-        return;
-      }
+        const set = Math.floor(Math.random() * 3) + 1;
+        const articleId = `article${set}`;
+        assignment = { articleId, set };
+        transaction.set(participantRef, {
+          nickname,
+          nicknameKey,
+          articleId,
+          set,
+          status: "In Progress",
+          createdAt: participantSnapshot.exists() && participantSnapshot.data().createdAt
+            ? participantSnapshot.data().createdAt
+            : serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      });
 
-      if (!record.articleId) {
-        message.innerHTML = setMessage(
-          "This respondent code does not have an assigned article."
-        );
-        return;
-      }
-
-      const article = await getArticle(record.articleId);
-
-      if (
-        !Array.isArray(article.questions) ||
-        article.questions.length !== 5
-      ) {
-        message.innerHTML = setMessage(
-          "The assigned article does not have exactly five questions."
-        );
+      const article = await getArticle(assignment.articleId);
+      if (!Array.isArray(article.questions) || article.questions.length !== 5) {
+        messageBox.innerHTML = setMessage("The assigned article does not have exactly five questions. Please contact the researcher.");
         return;
       }
 
       saveSession({
-        code,
-        set: record.set,
-        articleId: record.articleId,
+        mode: "official",
+        code: nicknameKey,
+        nickname,
+        nicknameKey,
+        set: assignment.set,
+        articleId: assignment.articleId,
         startedAt: new Date().toISOString()
       });
-
       renderArticle(article);
     } catch (error) {
       console.error(error);
-
-      message.innerHTML = setMessage(
-        "Something went wrong while connecting to NewsQuest."
-      );
+      if (error.message === "NICKNAME_ALREADY_USED") {
+        messageBox.innerHTML = setMessage("This nickname has already submitted a response. Please use a different nickname.");
+        return;
+      }
+      messageBox.innerHTML = setMessage("Something went wrong while connecting to NewsQuest. Please try again.");
     }
   }
 
@@ -1831,15 +1816,9 @@
 
     const session = getSession();
 
-    if (!session?.code || !session?.articleId) {
+    if (!session?.code || !session?.articleId || !session?.nicknameKey) {
       const message = document.querySelector("#quiz-message");
-
-      if (message) {
-        message.innerHTML = setMessage(
-          "Your session is missing. Please return to the start page and use your respondent code."
-        );
-      }
-
+      if (message) message.innerHTML = setMessage("Your session is missing. Please return to the start page and enter your nickname.");
       return;
     }
 
@@ -1854,7 +1833,7 @@
       return total + (answers[index] === question.correct ? 1 : 0);
     }, 0);
 
-    // Test Mode must never write to official responses, respondentCodes, or leaderboards.
+    // Test Mode must never write to official responses, participants, or leaderboards.
     if (session.mode === "test") {
       const testResult = {
         respondentCode: session.code,
@@ -1877,7 +1856,9 @@
     }
 
     const responseData = {
-      respondentCode: session.code,
+      nickname: session.nickname,
+      nicknameKey: session.nicknameKey,
+      respondentCode: session.nickname,
       set: session.set,
       articleId: session.articleId,
       answers,
@@ -1901,45 +1882,37 @@
 
       if (submitButton) submitButton.disabled = true;
 
-      const codeRef = doc(db, "respondentCodes", session.code);
-      const responseRef = doc(db, "responses", session.code);
-      const leaderboardRef = doc(
-        db,
-        "leaderboards",
-        session.articleId,
-        "entries",
-        session.code
-      );
-
-      const participantNumber = session.code.split("-")[1] || "000";
+      const participantRef = doc(db, "participants", session.nicknameKey);
+      const responseRef = doc(db, "responses", session.nicknameKey);
+      const leaderboardRef = doc(db, "leaderboards", session.articleId, "entries", session.nicknameKey);
 
       await runTransaction(db, async transaction => {
-        const codeSnapshot = await transaction.get(codeRef);
+        const participantSnapshot = await transaction.get(participantRef);
+        const responseSnapshot = await transaction.get(responseRef);
 
-        if (!codeSnapshot.exists()) {
-          throw new Error("CODE_NOT_FOUND");
+        if (responseSnapshot.exists() || (participantSnapshot.exists() && participantSnapshot.data().status === "Completed")) {
+          throw new Error("NICKNAME_ALREADY_USED");
         }
-
-        const currentCode = codeSnapshot.data();
-
-        if (currentCode.status === "Used") {
-          throw new Error("CODE_ALREADY_USED");
-        }
-
-        transaction.update(codeRef, {
-          status: "Used",
-          usedAt: serverTimestamp()
-        });
+        if (!participantSnapshot.exists()) throw new Error("PARTICIPANT_NOT_FOUND");
 
         transaction.set(responseRef, responseData);
+        transaction.set(participantRef, {
+          nickname: session.nickname,
+          nicknameKey: session.nicknameKey,
+          articleId: session.articleId,
+          set: session.set,
+          status: "Completed",
+          submittedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
 
         transaction.set(leaderboardRef, {
           articleId: session.articleId,
           set: session.set,
-          displayName: `Participant ${participantNumber}`,
+          displayName: session.nickname,
           points: responseData.points,
           score: responseData.score,
-          respondentCode: session.code,
+          nickname: session.nickname,
           createdAt: serverTimestamp()
         });
       });
@@ -1960,17 +1933,15 @@
 
       if (submitButton) submitButton.disabled = false;
 
-      if (error.message === "CODE_ALREADY_USED") {
+      if (error.message === "NICKNAME_ALREADY_USED") {
         message.innerHTML = setMessage(
-          "This respondent code has already been used."
+          "This nickname has already submitted a response."
         );
         return;
       }
 
-      if (error.message === "CODE_NOT_FOUND") {
-        message.innerHTML = setMessage(
-          "This respondent code is no longer available."
-        );
+      if (error.message === "PARTICIPANT_NOT_FOUND") {
+        message.innerHTML = setMessage("Your nickname assignment was not found. Please return to the start page and try again.");
         return;
       }
 
@@ -2015,7 +1986,7 @@
         <div class="notice">
           ${response.testMode
             ? `TEST MODE: ${escapeHTML(response.displayName || "Test User")}, your result is only a preview. It was not saved to official research records or the leaderboard. You may test again using the same nickname.`
-            : "Thank you. Your response has been recorded. This respondent code cannot be used for another attempt."}
+            : "Thank you. Your response has been recorded. This nickname cannot be used for another attempt."}
         </div>
 
         ${response.testMode ? "" : `
