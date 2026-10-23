@@ -419,7 +419,6 @@
             <div id="nickname-message" aria-live="polite"></div>
             <button class="primary-btn" type="submit">Continue</button>
           </form>
-          <p class="small" style="margin-top:14px;">Research testing only: enter <strong>Aninag</strong> as the nickname to open Test Mode. Test results are not saved to official research records or leaderboards.</p>
         </div>
         <div class="welcome-art" aria-hidden="true">
           <div class="illustration"><div class="illustration-inner">
