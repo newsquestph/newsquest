@@ -1835,7 +1835,6 @@
     // Test Mode must never write to official responses, participants, or leaderboards.
     if (session.mode === "test") {
       const testResult = {
-        respondentCode: session.code,
         displayName: session.nickname || "Test User",
         set: "TEST MODE",
         articleId: session.articleId,
@@ -1857,7 +1856,6 @@
     const responseData = {
       nickname: session.nickname,
       nicknameKey: session.nicknameKey,
-      respondentCode: session.nickname,
       set: session.set,
       articleId: session.articleId,
       answers,
