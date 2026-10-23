@@ -159,6 +159,63 @@
         font-weight: 800;
       }
 
+      .nq-answer-slots {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+        min-height: 48px;
+        margin: 16px 0 8px;
+      }
+
+      .nq-answer-slot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 43px;
+        padding: 0;
+        border: 2px solid #a8c39f;
+        border-bottom-width: 4px;
+        border-radius: 7px;
+        background: #fff;
+        color: #205b35;
+        font-size: 19px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .nq-answer-slot.is-filled {
+        background: #e5f1df;
+        border-color: #4f8a55;
+        animation: nqTilePop .16s ease-out;
+      }
+
+      .nq-letter-tile {
+        cursor: pointer;
+        transition: transform .15s ease, background .15s ease;
+      }
+
+      .nq-letter-tile:not(:disabled):hover {
+        transform: translateY(-3px);
+        background: #d5e9cb;
+      }
+
+      .nq-letter-tile:disabled {
+        opacity: .35;
+        transform: scale(.94);
+      }
+
+      .nq-crossword-answer[type="hidden"],
+      .nq-interactive-game .game-answer[type="hidden"] {
+        display: none !important;
+      }
+
+      @keyframes nqTilePop {
+        from { transform: scale(.88); }
+        to { transform: scale(1); }
+      }
+
       .four-pics-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -407,34 +464,19 @@
     getAppRoot().innerHTML = `
       <section class="welcome card">
         <div class="welcome-copy">
-          <div class="eyebrow">Test Mode</div>
+          <div class="eyebrow">NewsQuest</div>
           <h1>Welcome to NewsQuest</h1>
-          <p class="lead">Enter a nickname to begin. You will choose an article on the next page.</p>
-
-          <form id="test-nickname-form">
+          <p class="lead">Enter your nickname to begin. Keep using the same nickname if you need to continue an unfinished attempt.</p>
+          <form id="nickname-form">
             <div class="form-group">
-              <label for="test-nickname">Nickname</label>
-              <input id="test-nickname" name="nickname" autocomplete="off" maxlength="40" placeholder="Enter any nickname" required>
+              <label for="participant-nickname">Nickname</label>
+              <input id="participant-nickname" name="nickname" autocomplete="off" maxlength="40" placeholder="Enter your nickname" required>
+              <p class="small">Use a nickname you can remember. The same nickname can submit only once.</p>
             </div>
-            <div id="test-nickname-message" aria-live="polite"></div>
-            <button class="primary-btn" type="submit">Proceed</button>
-            <p class="small">Test Mode only. Your attempts will not be saved to official research responses or leaderboards.</p>
+            <div id="nickname-message" aria-live="polite"></div>
+            <button class="primary-btn" type="submit">Continue</button>
           </form>
-
-          <details style="margin-top:22px;">
-            <summary style="cursor:pointer;font-weight:600;">Official study participant? Enter respondent code</summary>
-            <form id="start-form" style="margin-top:14px;">
-              <div class="form-group">
-                <label for="respondent-code">Official respondent code</label>
-                <input id="respondent-code" name="code" autocomplete="off" placeholder="Example: SET1-001" required>
-                <p class="small">Use the unique code provided by the researcher.</p>
-              </div>
-              <div id="start-message"></div>
-              <button class="primary-btn" type="submit">Start Official Study</button>
-            </form>
-          </details>
         </div>
-
         <div class="welcome-art" aria-hidden="true">
           <div class="illustration"><div class="illustration-inner">
             <strong>NEWS</strong><hr><p>Read · Learn · Recall</p><span>+100 points</span>
@@ -442,23 +484,27 @@
         </div>
       </section>
     `;
-
-    document.querySelector("#test-nickname-form").addEventListener("submit", proceedToTestArticleSelection);
-    document.querySelector("#start-form").addEventListener("submit", startRespondent);
+    document.querySelector("#nickname-form").addEventListener("submit", handleNicknameEntry);
   }
 
-  async function proceedToTestArticleSelection(event) {
-    event.preventDefault();
-    const nickname = document.querySelector("#test-nickname").value.trim();
-    const message = document.querySelector("#test-nickname-message");
+  function nicknameDocumentId(nickname) {
+    return encodeURIComponent(normalizeAnswer(nickname));
+  }
 
+  async function handleNicknameEntry(event) {
+    event.preventDefault();
+    const nickname = document.querySelector("#participant-nickname").value.trim();
+    const message = document.querySelector("#nickname-message");
     if (!nickname) {
       message.innerHTML = setMessage("Please enter a nickname.");
       return;
     }
-
-    message.innerHTML = setMessage("Loading article titles...", "notice");
-    renderTestArticleSelection(nickname);
+    if (normalizeAnswer(nickname) === "aninag") {
+      message.innerHTML = setMessage("Opening Test Mode...", "notice");
+      renderTestArticleSelection("Aninag");
+      return;
+    }
+    await startRespondent(nickname, message);
   }
 
   async function renderTestArticleSelection(nickname) {
@@ -562,8 +608,7 @@
 
       saveSession({
         mode: "test",
-        code: `TEST-${Date.now()}`,
-        nickname,
+          nickname,
         set: "TEST MODE",
         articleId,
         startedAt: new Date().toISOString()
@@ -580,76 +625,70 @@
      START RESPONDENT
   ========================================================= */
 
-  async function startRespondent(event) {
-    event.preventDefault();
-
-    const code = document
-      .querySelector("#respondent-code")
-      .value
-      .trim()
-      .toUpperCase();
-
-    const message = document.querySelector("#start-message");
+  async function startRespondent(nickname, message) {
+    const nicknameKey = nicknameDocumentId(nickname);
+    const participantRef = doc(db, "participants", nicknameKey);
+    const responseRef = doc(db, "responses", nicknameKey);
+    const messageBox = message || document.querySelector("#nickname-message");
 
     try {
-      message.innerHTML = setMessage(
-        "Checking your respondent code...",
-        "notice"
-      );
+      messageBox.innerHTML = setMessage("Checking nickname and assigning your article...", "notice");
+      let assignment = null;
 
-      const codeSnapshot = await getDoc(
-        doc(db, "respondentCodes", code)
-      );
+      await runTransaction(db, async transaction => {
+        const participantSnapshot = await transaction.get(participantRef);
+        const responseSnapshot = await transaction.get(responseRef);
 
-      if (!codeSnapshot.exists()) {
-        message.innerHTML = setMessage(
-          "This respondent code is not valid."
-        );
-        return;
-      }
+        if (responseSnapshot.exists() || (participantSnapshot.exists() && participantSnapshot.data().status === "Completed")) {
+          throw new Error("NICKNAME_ALREADY_USED");
+        }
 
-      const record = codeSnapshot.data();
+        if (participantSnapshot.exists()) {
+          const existing = participantSnapshot.data();
+          if (existing.articleId && existing.set) {
+            assignment = { articleId: existing.articleId, set: existing.set };
+            return;
+          }
+        }
 
-      if (record.status === "Used") {
-        message.innerHTML = setMessage(
-          "This respondent code has already been used."
-        );
-        return;
-      }
+        const set = Math.floor(Math.random() * 3) + 1;
+        const articleId = `article${set}`;
+        assignment = { articleId, set };
+        transaction.set(participantRef, {
+          nickname,
+          nicknameKey,
+          articleId,
+          set,
+          status: "In Progress",
+          createdAt: participantSnapshot.exists() && participantSnapshot.data().createdAt
+            ? participantSnapshot.data().createdAt
+            : serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      });
 
-      if (!record.articleId) {
-        message.innerHTML = setMessage(
-          "This respondent code does not have an assigned article."
-        );
-        return;
-      }
-
-      const article = await getArticle(record.articleId);
-
-      if (
-        !Array.isArray(article.questions) ||
-        article.questions.length !== 5
-      ) {
-        message.innerHTML = setMessage(
-          "The assigned article does not have exactly five questions."
-        );
+      const article = await getArticle(assignment.articleId);
+      if (!Array.isArray(article.questions) || article.questions.length !== 5) {
+        messageBox.innerHTML = setMessage("The assigned article does not have exactly five questions. Please contact the researcher.");
         return;
       }
 
       saveSession({
-        code,
-        set: record.set,
-        articleId: record.articleId,
+        mode: "official",
+        nickname,
+        nicknameKey,
+        set: assignment.set,
+        articleId: assignment.articleId,
         startedAt: new Date().toISOString()
       });
-
       renderArticle(article);
     } catch (error) {
       console.error(error);
-
-      message.innerHTML = setMessage(
-        "Something went wrong while connecting to NewsQuest."
-      );
+      if (error.message === "NICKNAME_ALREADY_USED") {
+        messageBox.innerHTML = setMessage("This nickname has already submitted a response. Please use a different nickname.");
+        return;
+      }
+      messageBox.innerHTML = setMessage("Something went wrong while connecting to NewsQuest. Please try again.");
     }
   }
 
@@ -1125,7 +1164,7 @@
 
         button.disabled = true;
 
-        gameContainer.querySelectorAll("input").forEach(input => {
+        gameContainer.querySelectorAll("input, .nq-letter-tile, .nq-answer-slot").forEach(input => {
           input.disabled = true;
         });
 
@@ -1136,50 +1175,65 @@
         unlockGamePage();
       }
 
-      /* JUMBLED WORDS AND 4 PICS 1 WORD */
+      /* TILE-BASED JUMBLED WORDS AND 4 PICS 1 WORD */
 
-      if (
-        game.type === "jumbled" ||
-        game.type === "fourPics"
-      ) {
+      if (game.type === "jumbled" || game.type === "fourPics") {
         const input = gameContainer.querySelector(".game-answer");
+        const slots = Array.from(gameContainer.querySelectorAll(".nq-answer-slot"));
+        const tiles = Array.from(gameContainer.querySelectorAll(".nq-letter-tile"));
+        if (!input || !slots.length || !tiles.length) return;
 
-        if (!input) return;
+        function syncTiles() {
+          input.value = slots.map(slot => slot.dataset.letter || "").join("");
+          slots.forEach((slot, index) => {
+            slot.textContent = slot.dataset.letter || "＿";
+            slot.classList.toggle("is-filled", Boolean(slot.dataset.letter));
+            slot.setAttribute("aria-label", `Answer letter ${index + 1}: ${slot.dataset.letter || "empty"}`);
+          });
+        }
+
+        tiles.forEach(tile => tile.addEventListener("click", () => {
+          if (tile.disabled) return;
+          const emptySlot = slots.find(slot => !slot.dataset.letter);
+          if (!emptySlot) return;
+          emptySlot.dataset.letter = tile.dataset.letter || tile.textContent.trim();
+          emptySlot.dataset.tileId = tile.dataset.tileId;
+          tile.disabled = true;
+          syncTiles();
+          message.textContent = "";
+        }));
+
+        slots.forEach(slot => slot.addEventListener("click", () => {
+          if (!slot.dataset.letter) return;
+          const tile = tiles.find(item => item.dataset.tileId === slot.dataset.tileId);
+          if (tile) tile.disabled = false;
+          delete slot.dataset.letter;
+          delete slot.dataset.tileId;
+          syncTiles();
+        }));
 
         button.addEventListener("click", () => {
           const userAnswer = normalizeAnswer(input.value);
           const correctAnswer = normalizeAnswer(game.answer);
-
-          if (!userAnswer) {
-            message.innerHTML = setMessage(
-              "Please enter your answer first."
-            );
-            return;
-          }
-
           if (!correctAnswer) {
-            message.innerHTML = setMessage(
-              "This game does not have an answer configured. Please inform the researcher."
-            );
+            message.innerHTML = setMessage("This game does not have an answer configured. Please inform the researcher.");
             return;
           }
-
           if (userAnswer === correctAnswer) {
             markGameCorrect();
           } else {
             playSound("wrong.mp3");
-            message.innerHTML = setMessage(
-              "Not quite. Try again."
-            );
+            slots.forEach(slot => {
+              const tile = tiles.find(item => item.dataset.tileId === slot.dataset.tileId);
+              if (tile) tile.disabled = false;
+              delete slot.dataset.letter;
+              delete slot.dataset.tileId;
+            });
+            syncTiles();
+            message.innerHTML = setMessage("Not quite. The letters were cleared. Try again.");
           }
         });
-
-        input.addEventListener("keydown", event => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            button.click();
-          }
-        });
+        syncTiles();
       }
 
       /* MINI CROSSWORD */
@@ -1222,10 +1276,23 @@
 
               if (status) {
                 status.textContent = userAnswer
-                  ? "Check this answer and try again."
+                  ? "Incorrect. The letters were cleared; try again."
                   : "Answer this clue.";
                 status.classList.remove("is-correct");
                 status.classList.add("is-wrong");
+              }
+              const wordBox = input.closest(".nq-crossword-word");
+              if (wordBox && userAnswer) {
+                wordBox.querySelectorAll(".nq-answer-slot").forEach(slot => {
+                  const tile = wordBox.querySelector(`[data-tile-id="${slot.dataset.tileId}"]`);
+                  if (tile) tile.disabled = false;
+                  delete slot.dataset.letter;
+                  delete slot.dataset.tileId;
+                  slot.textContent = "＿";
+                  slot.classList.remove("is-filled");
+                });
+                input.value = "";
+                syncCrosswordGrid();
               }
             } else if (status) {
               status.textContent = "Correct";
@@ -1244,13 +1311,68 @@
           }
         });
 
-        crosswordInputs.forEach(input => {
-          input.addEventListener("keydown", event => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              button.click();
-            }
+        /* Crossword letter tiles fill the answer boxes and the crossword grid. */
+        function syncCrosswordGrid() {
+          const grid = gameContainer.querySelector(".nq-crossword-grid");
+          if (!grid) return;
+          const letterByCell = new Map();
+          gameContainer.querySelectorAll(".nq-crossword-word").forEach(wordBox => {
+            const startRow = Number(wordBox.dataset.row);
+            const startColumn = Number(wordBox.dataset.column);
+            const direction = wordBox.dataset.direction;
+            wordBox.querySelectorAll(".nq-answer-slot").forEach((slot, index) => {
+              if (!slot.dataset.letter) return;
+              const row = startRow + (direction === "down" ? index : 0);
+              const column = startColumn + (direction === "across" ? index : 0);
+              const key = `${row},${column}`;
+              if (!letterByCell.has(key)) letterByCell.set(key, slot.dataset.letter);
+            });
           });
+          grid.querySelectorAll(".nq-crossword-cell[data-row]").forEach(cell => {
+            const key = `${cell.dataset.row},${cell.dataset.column}`;
+            const letter = letterByCell.get(key) || "";
+            const span = cell.querySelector(".nq-crossword-letter");
+            if (span) span.textContent = letter || " ";
+          });
+        }
+
+        gameContainer.querySelectorAll(".nq-crossword-word").forEach(wordBox => {
+          const wordIndex = wordBox.dataset.crosswordWord;
+          const input = wordBox.querySelector(".nq-crossword-answer");
+          const slots = Array.from(wordBox.querySelectorAll(".nq-answer-slot"));
+          const tiles = Array.from(wordBox.querySelectorAll(".nq-letter-tile"));
+          const status = wordBox.querySelector(".nq-crossword-status");
+          const syncWord = () => {
+            input.value = slots.map(slot => slot.dataset.letter || "").join("");
+            slots.forEach((slot, index) => {
+              slot.textContent = slot.dataset.letter || "＿";
+              slot.classList.toggle("is-filled", Boolean(slot.dataset.letter));
+              slot.setAttribute("aria-label", `Letter ${index + 1}: ${slot.dataset.letter || "empty"}`);
+            });
+            if (status && !status.classList.contains("is-correct")) {
+              status.textContent = "";
+              status.classList.remove("is-wrong");
+            }
+            syncCrosswordGrid();
+          };
+          tiles.forEach(tile => tile.addEventListener("click", () => {
+            if (tile.disabled) return;
+            const slot = slots.find(item => !item.dataset.letter);
+            if (!slot) return;
+            slot.dataset.letter = tile.dataset.letter;
+            slot.dataset.tileId = tile.dataset.tileId;
+            tile.disabled = true;
+            syncWord();
+          }));
+          slots.forEach(slot => slot.addEventListener("click", () => {
+            if (!slot.dataset.letter) return;
+            const tile = tiles.find(item => item.dataset.tileId === slot.dataset.tileId);
+            if (tile) tile.disabled = false;
+            delete slot.dataset.letter;
+            delete slot.dataset.tileId;
+            syncWord();
+          }));
+          syncWord();
         });
       }
     });
@@ -1276,64 +1398,28 @@
   function renderReaderGame(game) {
     if (!game || !game.type) return "";
 
-    /* JUMBLED WORDS */
+    /* JUMBLED WORDS: tap letters in spelling order */
 
     if (game.type === "jumbled") {
-      const answerLetters = Array.from(
-        String(game.answer || "")
-          .replace(/\s/g, "")
-      );
-
+      const answerLetters = Array.from(String(game.answer || "").replace(/\s/g, ""));
+      const letters = game.scrambled
+        ? Array.from(String(game.scrambled).replace(/\s/g, ""))
+        : answerLetters.slice().sort(() => Math.random() - 0.5);
+      const answerLength = answerLetters.length;
       return `
-        <div class="game-box">
+        <div class="game-box nq-tile-puzzle">
           <div class="eyebrow">Interactive Game</div>
           <h3>Jumbled Words</h3>
-
-          <p class="small">
-            Unscramble the letters to find the correct word.
-          </p>
-
-          <div class="nq-game-letter-bank" aria-label="Jumbled letters">
-            ${
-              Array.from(String(game.scrambled || ""))
-                .filter(character => !/\s/.test(character))
-                .map(character => `
-                  <span class="nq-game-letter">
-                    ${escapeHTML(character)}
-                  </span>
-                `)
-                .join("") ||
-              answerLetters.map(character => `
-                <span class="nq-game-letter">
-                  ${escapeHTML(character)}
-                </span>
-              `).join("")
-            }
+          <p class="small">Tap the letter tiles in the correct spelling order. Tap an answer box to remove a letter.</p>
+          <div class="nq-answer-slots" aria-label="Answer boxes">
+            ${Array.from({length: answerLength}, (_, index) => `<button type="button" class="nq-answer-slot" data-slot="${index}" aria-label="Empty answer letter ${index + 1}">＿</button>`).join("")}
           </div>
-
-          ${
-            game.hint
-              ? `
-                <p class="small">
-                  <strong>Hint:</strong> ${escapeHTML(game.hint)}
-                </p>
-              `
-              : ""
-          }
-
-          <input
-            class="game-answer game-input"
-            type="text"
-            autocomplete="off"
-            autocapitalize="none"
-            placeholder="Type your answer"
-            aria-label="Your jumbled word answer"
-          >
-
-          <button class="game-submit primary-btn" type="button">
-            Check Answer
-          </button>
-
+          <div class="nq-game-letter-bank" aria-label="Letter tiles">
+            ${letters.map((character, index) => `<button type="button" class="nq-game-letter nq-letter-tile" data-letter="${escapeAttr(character)}" data-tile-id="tile-${index}">${escapeHTML(character)}</button>`).join("")}
+          </div>
+          ${game.hint ? `<p class="small"><strong>Hint:</strong> ${escapeHTML(game.hint)}</p>` : ""}
+          <input class="game-answer game-input" type="hidden" aria-label="Selected answer">
+          <button class="game-submit primary-btn" type="button">Check Answer</button>
           <div class="game-message" aria-live="polite"></div>
         </div>
       `;
@@ -1345,6 +1431,7 @@
       const images = Array.isArray(game.images)
         ? game.images.slice(0, 4)
         : [];
+      const fourPicsLetters = Array.from(String(game.answer || "").replace(/\s/g, "")).sort(() => Math.random() - 0.5);
 
       return `
         <div class="game-box">
@@ -1397,18 +1484,14 @@
               : ""
           }
 
-          <input
-            class="game-answer game-input"
-            type="text"
-            autocomplete="off"
-            autocapitalize="none"
-            placeholder="What is the word?"
-            aria-label="Your four pictures one word answer"
-          >
-
-          <button class="game-submit primary-btn" type="button">
-            Check Answer
-          </button>
+          <div class="nq-answer-slots" aria-label="Answer boxes">
+            ${Array.from({length: Array.from(String(game.answer || "").replace(/\s/g, "")).length}, (_, index) => `<button type="button" class="nq-answer-slot" data-slot="${index}" aria-label="Empty answer letter ${index + 1}">＿</button>`).join("")}
+          </div>
+          <div class="nq-game-letter-bank" aria-label="Letter tiles">
+            ${fourPicsLetters.map((character, index) => `<button type="button" class="nq-game-letter nq-letter-tile" data-letter="${escapeAttr(character)}" data-tile-id="tile-${index}">${escapeHTML(character)}</button>`).join("")}
+          </div>
+          <input class="game-answer game-input" type="hidden" aria-label="Selected answer">
+          <button class="game-submit primary-btn" type="button">Check Answer</button>
 
           <div class="game-message" aria-live="polite"></div>
         </div>
@@ -1586,12 +1669,12 @@
           const cell = cells.get(cellKey(row, column));
 
           if (!cell) {
-            gridHTML += `<div class="nq-crossword-cell is-block"></div>`;
+            gridHTML += `<div class="nq-crossword-cell is-block" data-row="${row}" data-column="${column}"></div>`;
             continue;
           }
 
           gridHTML += `
-            <div class="nq-crossword-cell ${cell.numbers.length ? "is-start" : ""}">
+            <div class="nq-crossword-cell ${cell.numbers.length ? "is-start" : ""}" data-row="${row}" data-column="${column}">
               ${
                 cell.numbers.length
                   ? `<span class="nq-crossword-number">${cell.numbers[0]}</span>`
@@ -1613,29 +1696,26 @@
           const answerLength = word.answer.replace(/\s/g, "").length;
 
           return `
-            <div class="nq-crossword-clue">
-              <label for="crossword-answer-${word.originalIndex}">
+            <div class="nq-crossword-clue nq-crossword-word" data-crossword-word="${word.originalIndex}" data-row="${word.row}" data-column="${word.column}" data-direction="${word.direction}">
+              <label>
                 ${number}. ${escapeHTML(word.clue)}
                 <span class="small">(${answerLength} letters)</span>
               </label>
 
+              <div class="nq-answer-slots" aria-label="Answer boxes for clue ${number}">
+                ${Array.from({length: answerLength}, (_, index) => `<button type="button" class="nq-answer-slot" data-slot="${index}" aria-label="Empty letter ${index + 1}">＿</button>`).join("")}
+              </div>
+              <div class="nq-game-letter-bank" aria-label="Letter tiles for clue ${number}">
+                ${Array.from(word.answer.replace(/\s/g, "")).map((character, index, source) => ({character, index, sort: Math.random()})).sort((a,b) => a.sort-b.sort).map(item => `<button type="button" class="nq-game-letter nq-letter-tile" data-letter="${escapeAttr(item.character)}" data-tile-id="cw-${word.originalIndex}-${item.index}">${escapeHTML(item.character)}</button>`).join("")}
+              </div>
               <input
                 id="crossword-answer-${word.originalIndex}"
                 class="nq-crossword-answer"
                 data-word-index="${word.originalIndex}"
-                type="text"
-                autocomplete="off"
-                autocapitalize="characters"
-                spellcheck="false"
-                placeholder="Enter answer"
+                type="hidden"
                 aria-label="Crossword clue ${number}"
               >
-
-              <div
-                class="nq-crossword-status"
-                data-word-status="${word.originalIndex}"
-                aria-live="polite"
-              ></div>
+              <div class="nq-crossword-status" data-word-status="${word.originalIndex}" aria-live="polite"></div>
             </div>
           `;
         }).join("");
@@ -1831,15 +1911,9 @@
 
     const session = getSession();
 
-    if (!session?.code || !session?.articleId) {
+    if (!session?.nickname || !session?.articleId || (session.mode !== "test" && !session?.nicknameKey)) {
       const message = document.querySelector("#quiz-message");
-
-      if (message) {
-        message.innerHTML = setMessage(
-          "Your session is missing. Please return to the start page and use your respondent code."
-        );
-      }
-
+      if (message) message.innerHTML = setMessage("Your session is missing. Please return to the start page and enter your nickname.");
       return;
     }
 
@@ -1854,10 +1928,9 @@
       return total + (answers[index] === question.correct ? 1 : 0);
     }, 0);
 
-    // Test Mode must never write to official responses, respondentCodes, or leaderboards.
+    // Test Mode must never write to official responses, participants, or leaderboards.
     if (session.mode === "test") {
       const testResult = {
-        respondentCode: session.code,
         displayName: session.nickname || "Test User",
         set: "TEST MODE",
         articleId: session.articleId,
@@ -1877,7 +1950,8 @@
     }
 
     const responseData = {
-      respondentCode: session.code,
+      nickname: session.nickname,
+      nicknameKey: session.nicknameKey,
       set: session.set,
       articleId: session.articleId,
       answers,
@@ -1901,45 +1975,37 @@
 
       if (submitButton) submitButton.disabled = true;
 
-      const codeRef = doc(db, "respondentCodes", session.code);
-      const responseRef = doc(db, "responses", session.code);
-      const leaderboardRef = doc(
-        db,
-        "leaderboards",
-        session.articleId,
-        "entries",
-        session.code
-      );
-
-      const participantNumber = session.code.split("-")[1] || "000";
+      const participantRef = doc(db, "participants", session.nicknameKey);
+      const responseRef = doc(db, "responses", session.nicknameKey);
+      const leaderboardRef = doc(db, "leaderboards", session.articleId, "entries", session.nicknameKey);
 
       await runTransaction(db, async transaction => {
-        const codeSnapshot = await transaction.get(codeRef);
+        const participantSnapshot = await transaction.get(participantRef);
+        const responseSnapshot = await transaction.get(responseRef);
 
-        if (!codeSnapshot.exists()) {
-          throw new Error("CODE_NOT_FOUND");
+        if (responseSnapshot.exists() || (participantSnapshot.exists() && participantSnapshot.data().status === "Completed")) {
+          throw new Error("NICKNAME_ALREADY_USED");
         }
-
-        const currentCode = codeSnapshot.data();
-
-        if (currentCode.status === "Used") {
-          throw new Error("CODE_ALREADY_USED");
-        }
-
-        transaction.update(codeRef, {
-          status: "Used",
-          usedAt: serverTimestamp()
-        });
+        if (!participantSnapshot.exists()) throw new Error("PARTICIPANT_NOT_FOUND");
 
         transaction.set(responseRef, responseData);
+        transaction.set(participantRef, {
+          nickname: session.nickname,
+          nicknameKey: session.nicknameKey,
+          articleId: session.articleId,
+          set: session.set,
+          status: "Completed",
+          submittedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
 
         transaction.set(leaderboardRef, {
           articleId: session.articleId,
           set: session.set,
-          displayName: `Participant ${participantNumber}`,
+          displayName: session.nickname,
           points: responseData.points,
           score: responseData.score,
-          respondentCode: session.code,
+          nickname: session.nickname,
           createdAt: serverTimestamp()
         });
       });
@@ -1960,17 +2026,15 @@
 
       if (submitButton) submitButton.disabled = false;
 
-      if (error.message === "CODE_ALREADY_USED") {
+      if (error.message === "NICKNAME_ALREADY_USED") {
         message.innerHTML = setMessage(
-          "This respondent code has already been used."
+          "This nickname has already submitted a response."
         );
         return;
       }
 
-      if (error.message === "CODE_NOT_FOUND") {
-        message.innerHTML = setMessage(
-          "This respondent code is no longer available."
-        );
+      if (error.message === "PARTICIPANT_NOT_FOUND") {
+        message.innerHTML = setMessage("Your nickname assignment was not found. Please return to the start page and try again.");
         return;
       }
 
@@ -2015,7 +2079,7 @@
         <div class="notice">
           ${response.testMode
             ? `TEST MODE: ${escapeHTML(response.displayName || "Test User")}, your result is only a preview. It was not saved to official research records or the leaderboard. You may test again using the same nickname.`
-            : "Thank you. Your response has been recorded. This respondent code cannot be used for another attempt."}
+            : "Thank you. Your response has been recorded. This nickname cannot be used for another attempt."}
         </div>
 
         ${response.testMode ? "" : `

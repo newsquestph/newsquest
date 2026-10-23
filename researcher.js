@@ -139,7 +139,7 @@
           text: "What determines which article a respondent sees?",
           choices: [
             "A dropdown menu",
-            "The respondent code",
+            "Random assignment",
             "The respondent's score",
             "The time of day"
           ],
@@ -436,17 +436,7 @@
         )
       );
 
-    const codeSnapshot =
-      await getDocs(
-        collection(
-          db,
-          "respondentCodes"
-        )
-      );
-
-    const batch =
-      writeBatch(db);
-
+    const batch = writeBatch(db);
     let changed = false;
 
     if (articleSnapshot.empty) {
@@ -470,46 +460,7 @@
 
     }
 
-    if (codeSnapshot.empty) {
-
-      const defaults = [
-        ["SET1-001", 1, "article1"],
-        ["SET1-002", 1, "article1"],
-        ["SET1-003", 1, "article1"],
-        ["SET2-001", 2, "article2"],
-        ["SET2-002", 2, "article2"],
-        ["SET2-003", 2, "article2"],
-        ["SET3-001", 3, "article3"],
-        ["SET3-002", 3, "article3"],
-        ["SET3-003", 3, "article3"]
-      ];
-
-      defaults.forEach(
-        ([code, set, articleId]) => {
-
-          batch.set(
-            doc(
-              db,
-              "respondentCodes",
-              code
-            ),
-            {
-              code,
-              set,
-              articleId,
-              status: "Available",
-              usedAt: null,
-              createdAt:
-                serverTimestamp()
-            }
-          );
-
-          changed = true;
-
-        }
-      );
-
-    }
+    // Official respondents now enter nicknames; no respondent codes are created.
 
     if (changed) {
       await batch.commit();
@@ -688,10 +639,6 @@
           Article/Quiz Editor
         </button>
 
-        <button data-tab="codes">
-          Respondent Codes
-        </button>
-
         <button data-tab="leaderboards">
           Leaderboards
         </button>
@@ -743,12 +690,6 @@
       activeTab === "editor"
     ) {
       renderEditor();
-    }
-
-    if (
-      activeTab === "codes"
-    ) {
-      renderCodeManager();
     }
 
     if (
@@ -837,7 +778,7 @@
 
                 <td>
                   ${escapeHTML(
-                    response.respondentCode || ""
+                    response.nickname || response.id || ""
                   )}
                 </td>
 
@@ -890,16 +831,16 @@
                 </td>
 
                 <td>
-
                   <span class="status used">
-                    ${escapeHTML(
-                      response.status ||
-                        "Completed"
-                    )}
+                    ${escapeHTML(response.status || "Completed")}
                   </span>
-
                 </td>
-
+                <td>
+                  <button type="button" class="secondary-btn"
+                    data-delete-nickname="${escapeAttr(response.nicknameKey || response.id)}"
+                    data-delete-article="${escapeAttr(response.articleId || "")}"
+                    style="padding:7px 10px;font-size:12px;">Delete record</button>
+                </td>
               </tr>
             `;
 
@@ -914,7 +855,7 @@
           </h3>
 
           <p class="small">
-            All completed respondents are shown in one place.
+            All completed respondents are shown in one place. Delete a record to allow that nickname to be used again.
           </p>
 
           <div class="table-wrap">
@@ -924,7 +865,7 @@
               <thead>
 
                 <tr>
-                  <th>Respondent Code</th>
+                  <th>Nickname</th>
                   <th>Set</th>
                   <th>Article</th>
                   <th>Score</th>
@@ -933,6 +874,7 @@
                   <th>Date</th>
                   <th>Time</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
 
               </thead>
@@ -943,7 +885,7 @@
                   rows ||
                   `
                     <tr>
-                      <td colspan="9">
+                      <td colspan="10">
                         No responses yet.
                       </td>
                     </tr>
@@ -955,9 +897,33 @@
             </table>
 
           </div>
-
+          <p class="small">Deleting a record permanently removes that official response and its leaderboard entry, and frees the nickname for another attempt.</p>
         </section>
       `;
+
+      container.querySelectorAll("[data-delete-nickname]").forEach(button => {
+        button.addEventListener("click", async () => {
+          const nicknameKey = button.dataset.deleteNickname;
+          const articleId = button.dataset.deleteArticle;
+          if (!nicknameKey) return;
+          if (!window.confirm("Permanently delete this response and its leaderboard entry, and allow this nickname to be used again? This cannot be undone.")) return;
+          button.disabled = true;
+          button.textContent = "Deleting...";
+          try {
+            const batch = writeBatch(db);
+            batch.delete(doc(db, "responses", nicknameKey));
+            batch.delete(doc(db, "participants", nicknameKey));
+            if (articleId) batch.delete(doc(db, "leaderboards", articleId, "entries", nicknameKey));
+            await batch.commit();
+            await renderRecords();
+          } catch (error) {
+            console.error("Nickname record deletion failed:", error);
+            button.disabled = false;
+            button.textContent = "Delete record";
+            alert("Could not delete the record. Check Firestore permissions and try again.");
+          }
+        });
+      });
 
     } catch (error) {
 
@@ -4271,354 +4237,7 @@
   }
 
   // =========================================================
-  // CODE MANAGER
-  // =========================================================
-
-  async function renderCodeManager() {
-
-    const container =
-      document.querySelector(
-        "#dashboard-content"
-      );
-
-    container.innerHTML = `
-      <section class="card editor-section">
-
-        <h3>
-          Respondent code management
-        </h3>
-
-        <p class="small">
-          Codes determine the assigned set
-          and article.
-        </p>
-
-        <form id="add-code-form">
-
-          <div class="editor-question-grid">
-
-            <div class="form-group">
-
-              <label>
-                New respondent code
-              </label>
-
-              <input
-                id="new-code"
-                required
-                placeholder="SET1-004"
-              >
-
-            </div>
-
-            <div class="form-group">
-
-              <label>
-                Assigned set
-              </label>
-
-              <select id="new-set">
-
-                <option value="1">
-                  Set 1 / Article 1
-                </option>
-
-                <option value="2">
-                  Set 2 / Article 2
-                </option>
-
-                <option value="3">
-                  Set 3 / Article 3
-                </option>
-
-              </select>
-
-            </div>
-
-          </div>
-
-          <div id="code-message"></div>
-
-          <button
-            class="primary-btn"
-            type="submit"
-          >
-            Add respondent code
-          </button>
-
-        </form>
-
-      </section>
-
-      <section class="card editor-section">
-
-        <h3>
-          Existing respondent codes
-        </h3>
-
-        <div class="table-wrap">
-
-          <table>
-
-            <thead>
-
-              <tr>
-                <th>Code</th>
-                <th>Set</th>
-                <th>Article</th>
-                <th>Status</th>
-              </tr>
-
-            </thead>
-
-            <tbody id="code-table">
-
-              <tr>
-                <td colspan="4">
-                  Loading codes...
-                </td>
-              </tr>
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </section>
-    `;
-
-    document
-      .querySelector(
-        "#add-code-form"
-      )
-      .addEventListener(
-        "submit",
-        addCode
-      );
-
-    await drawCodeTable();
-
-  }
-
-  async function addCode(event) {
-
-    event.preventDefault();
-
-    const message =
-      document.querySelector(
-        "#code-message"
-      );
-
-    const code =
-      document
-        .querySelector(
-          "#new-code"
-        )
-        .value
-        .trim()
-        .toUpperCase();
-
-    const set =
-      Number(
-        document.querySelector(
-          "#new-set"
-        ).value
-      );
-
-    if (
-      !/^SET[1-3]-[A-Z0-9]+$/.test(
-        code
-      )
-    ) {
-
-      message.innerHTML =
-        errorBox(
-          "Use a format like SET1-004."
-        );
-
-      return;
-    }
-
-    const ref =
-      doc(
-        db,
-        "respondentCodes",
-        code
-      );
-
-    try {
-
-      const existing =
-        await getDoc(ref);
-
-      if (
-        existing.exists()
-      ) {
-
-        message.innerHTML =
-          errorBox(
-            "That respondent code already exists."
-          );
-
-        return;
-      }
-
-      await setDoc(
-        ref,
-        {
-
-          code,
-
-          set,
-
-          articleId:
-            SET_ARTICLES[
-              set
-            ],
-
-          status:
-            "Available",
-
-          usedAt:
-            null,
-
-          createdAt:
-            serverTimestamp()
-
-        }
-      );
-
-      message.innerHTML =
-        noticeBox(
-          "Respondent code added."
-        );
-
-      event.target.reset();
-
-      await drawCodeTable();
-
-    } catch (error) {
-
-      console.error(error);
-
-      message.innerHTML =
-        errorBox(
-          "The respondent code could not be added."
-        );
-
-    }
-
-  }
-
-  async function drawCodeTable() {
-
-    const table =
-      document.querySelector(
-        "#code-table"
-      );
-
-    if (!table) {
-      return;
-    }
-
-    try {
-
-      const snapshot =
-        await getDocs(
-          collection(
-            db,
-            "respondentCodes"
-          )
-        );
-
-      const rows =
-        snapshot.docs
-          .map(item => ({
-            id: item.id,
-            ...item.data()
-          }))
-          .sort(
-            (a, b) =>
-              String(
-                a.code
-              ).localeCompare(
-                String(
-                  b.code
-                )
-              )
-          )
-          .map(
-            code => `
-              <tr>
-
-                <td>
-                  ${escapeHTML(
-                    code.code || ""
-                  )}
-                </td>
-
-                <td>
-                  Set ${escapeHTML(
-                    code.set || ""
-                  )}
-                </td>
-
-                <td>
-                  ${escapeHTML(
-                    articleName(
-                      code.articleId || ""
-                    )
-                  )}
-                </td>
-
-                <td>
-
-                  <span
-                    class="status ${
-                      code.status ===
-                      "Used"
-                        ? "used"
-                        : "available"
-                    }"
-                  >
-                    ${escapeHTML(
-                      code.status || ""
-                    )}
-                  </span>
-
-                </td>
-
-              </tr>
-            `
-          )
-          .join("");
-
-      table.innerHTML =
-        rows ||
-        `
-          <tr>
-            <td colspan="4">
-              No respondent codes yet.
-            </td>
-          </tr>
-        `;
-
-    } catch (error) {
-
-      console.error(error);
-
-      table.innerHTML = `
-        <tr>
-          <td colspan="4">
-            Unable to load respondent codes.
-          </td>
-        </tr>
-      `;
-
-    }
-
-  }
+  // LEADERBOARDS
 
   // =========================================================
   // LEADERBOARDS
@@ -4886,7 +4505,7 @@
         );
 
       const headers = [
-        "Respondent Code",
+        "Nickname",
         "Set",
         "Article",
         "Score",
@@ -4914,7 +4533,7 @@
               : new Date();
 
           lines.push([
-            response.respondentCode || "",
+            response.nickname || "",
             `Set ${response.set || ""}`,
             articleName(
               response.articleId || ""
