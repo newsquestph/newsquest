@@ -620,14 +620,53 @@
         position = gameIndex + 1;
       }
 
-      if (
-        position >= 1 &&
-        position <= totalParagraphs
-      ) {
-        gameMap[position] = game;
+      if (position >= 1 && position <= totalParagraphs) {
+        if (!gameMap[position]) gameMap[position] = [];
+        gameMap[position].push({
+          ...game,
+          _newsquestGameIndex: gameIndex
+        });
       }
     });
 
+    const pages = [];
+    let currentParagraphs = [];
+
+    for (let i = 1; i <= totalParagraphs; i++) {
+      currentParagraphs.push({
+        number: i,
+        text: paragraphs[i - 1]
+      });
+
+      if (gameMap[i]?.length) {
+        pages.push({
+          paragraphs: currentParagraphs,
+          games: gameMap[i],
+          gamePosition: i
+        });
+
+        currentParagraphs = [];
+      }
+    }
+
+    if (
+      currentParagraphs.length > 0 ||
+      (pages.length > 0 && pages[pages.length - 1].games?.length)
+    ) {
+      pages.push({
+        paragraphs: currentParagraphs,
+        games: [],
+        gamePosition: null
+      });
+    }
+
+    if (pages.length === 0) {
+      pages.push({
+        paragraphs: [],
+        games: [],
+        gamePosition: null
+      });
+    }
     /* BUILD BOOK PAGES */
 
     const pages = [];
@@ -754,31 +793,32 @@ if (
                       `).join("")}
                     </div>
 
-                    ${
-                      page.game
+                                      ${
+                      page.games?.length
                         ? `
                           <div class="nq-game-break">
                             <div class="nq-game-line"></div>
                             <div class="nq-game-label">READER CHALLENGE</div>
-
-                            <div
-                              class="nq-game-wrapper interactive-game nq-interactive-game"
-                              data-game-position="${page.gamePosition}"
-                            >
-                              ${renderReaderGame(page.game)}
-                            </div>
+                            ${page.games.map(game => `
+                              <div
+                                class="nq-game-wrapper interactive-game nq-interactive-game"
+                                data-game-position="${page.gamePosition}"
+                                data-game-index="${game._newsquestGameIndex}"
+                              >
+                                ${renderReaderGame(game)}
+                              </div>
+                            `).join("")}
                           </div>
                         `
                         : ""
                     }
 
                     ${
-                      !page.game && pageIndex === pages.length - 1
+                      !page.games?.length && pageIndex === pages.length - 1
                         ? `
                           <div id="final-reading-action" class="nq-final-action">
                             <div class="nq-game-line"></div>
                             <div class="nq-game-label">ARTICLE COMPLETE</div>
-
                             <button
                               id="begin-quiz"
                               class="primary-btn"
@@ -790,7 +830,6 @@ if (
                         `
                         : ""
                     }
-
                     <div class="nq-page-footer">
                       <span>
                         ${pageIndex === 0 ? "THE DAILY STORY" : "STORY CONTINUES"}
@@ -977,8 +1016,8 @@ if (
     /* GAME ANSWER HANDLERS */
 
     document.querySelectorAll(".interactive-game").forEach(gameContainer => {
-      const position = Number(gameContainer.dataset.gamePosition);
-      const game = gameMap[position];
+      const gameIndex = Number(gameContainer.dataset.gameIndex);
+      const game = games[gameIndex];
 
       if (!game) return;
 
@@ -987,27 +1026,35 @@ if (
 
       if (!message || !button) return;
 
-      function unlockGamePage() {
-        const pageElement = gameContainer.closest(".nq-page");
-        if (!pageElement) return;
+    function unlockGamePage() {
+  const currentPage = pages[currentPageIndex];
+  if (!currentPage) return;
 
-        const pageIndex = Number(pageElement.dataset.page);
-        const nextPage = pageIndex + 1;
+  const gameContainers = document.querySelectorAll(
+    `.interactive-game[data-game-position="${currentPage.gamePosition}"]`
+  );
 
-        if (nextPage < pageElements.length) {
-          unlockedPages.add(nextPage);
+  // Huwag mag-unlock hangga't may game na hindi pa tapos.
+  const allGamesCompleted = Array.from(gameContainers).every(
+    (container) => container.dataset.gameComplete === "true"
+  );
 
-          if (currentPage === pageIndex) {
-            nextButton.disabled = false;
-            nextButton.textContent = "Turn Page →";
-          }
-        }
-      }
+  if (!allGamesCompleted) {
+    return;
+  }
+
+  // Lahat ng games sa page ay solved na.
+  const nextButton = document.getElementById("next-page-btn");
+  if (nextButton) {
+    nextButton.disabled = false;
+  }
+}
 
       function markGameCorrect() {
         showConfetti();
         playSound("correct.mp3");
-
+        gameContainer.dataset.gameComplete = "true";
+        
         message.innerHTML = setMessage(
           "Correct! Great job. You can now continue reading.",
           "success"
