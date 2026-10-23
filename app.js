@@ -637,9 +637,8 @@
 
       await runTransaction(db, async transaction => {
         const participantSnapshot = await transaction.get(participantRef);
-        const responseSnapshot = await transaction.get(responseRef);
 
-        if (responseSnapshot.exists() || (participantSnapshot.exists() && participantSnapshot.data().status === "Completed")) {
+        if (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") {
           throw new Error("NICKNAME_ALREADY_USED");
         }
 
@@ -1981,9 +1980,8 @@
 
       await runTransaction(db, async transaction => {
         const participantSnapshot = await transaction.get(participantRef);
-        const responseSnapshot = await transaction.get(responseRef);
 
-        if (responseSnapshot.exists() || (participantSnapshot.exists() && participantSnapshot.data().status === "Completed")) {
+        if (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") {
           throw new Error("NICKNAME_ALREADY_USED");
         }
         if (!participantSnapshot.exists()) throw new Error("PARTICIPANT_NOT_FOUND");
