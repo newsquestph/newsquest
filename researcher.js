@@ -778,7 +778,7 @@
 
                 <td>
                   ${escapeHTML(
-                    response.nickname || response.respondentCode || response.id || ""
+                    response.nickname || response.id || ""
                   )}
                 </td>
 
@@ -4533,7 +4533,7 @@
               : new Date();
 
           lines.push([
-            response.nickname || response.respondentCode || "",
+            response.nickname || "",
             `Set ${response.set || ""}`,
             articleName(
               response.articleId || ""
