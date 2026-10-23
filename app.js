@@ -1270,8 +1270,10 @@
         }));
 
         button.addEventListener("click", () => {
-          const userAnswer = normalizeAnswer(input.value);
-          const correctAnswer = normalizeAnswer(game.answer);
+          // Tile-based answers are assembled without spaces. Ignore spaces
+          // in configured multi-word answers so correct tiles are not rejected.
+          const userAnswer = normalizeAnswer(input.value).replace(/\s+/g, "");
+          const correctAnswer = normalizeAnswer(game.answer).replace(/\s+/g, "");
           if (!correctAnswer) {
             message.innerHTML = setMessage("This game does not have an answer configured. Please inform the researcher.");
             return;
