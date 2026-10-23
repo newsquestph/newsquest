@@ -2051,39 +2051,46 @@
       const responseRef = doc(db, "responses", session.nicknameKey);
       const leaderboardRef = doc(db, "leaderboards", session.articleId, "entries", session.nicknameKey);
 
-      // Save the quiz answers first so a separate participant/leaderboard
-      // permission failure cannot silently discard the actual quiz response.
-      // This remains an official response only; Test Mode exits above.
+      // Save the official quiz response first. Do not let a later
+      // participant/leaderboard update failure make a saved response look lost.
       await setDoc(responseRef, responseData);
 
-      await runTransaction(db, async transaction => {
-        const participantSnapshot = await transaction.get(participantRef);
+      // The response is now saved. Finalize supporting records separately so
+      // a permission/rules issue in these collections does not undo the quiz.
+      try {
+        await runTransaction(db, async transaction => {
+          const participantSnapshot = await transaction.get(participantRef);
 
-        if (participantSnapshot.exists() && participantSnapshot.data().status === "Completed") {
-          throw new Error("NICKNAME_ALREADY_USED");
-        }
-        if (!participantSnapshot.exists()) throw new Error("PARTICIPANT_NOT_FOUND");
+          if (!participantSnapshot.exists()) {
+            throw new Error("PARTICIPANT_NOT_FOUND");
+          }
 
-        transaction.set(participantRef, {
-          nickname: session.nickname,
-          nicknameKey: session.nicknameKey,
-          articleId: session.articleId,
-          set: session.set,
-          status: "Completed",
-          submittedAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
+          transaction.set(participantRef, {
+            nickname: session.nickname,
+            nicknameKey: session.nicknameKey,
+            articleId: session.articleId,
+            set: session.set,
+            status: "Completed",
+            submittedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          }, { merge: true });
 
-        transaction.set(leaderboardRef, {
-          articleId: session.articleId,
-          set: session.set,
-          displayName: session.nickname,
-          points: responseData.points,
-          score: responseData.score,
-          nickname: session.nickname,
-          createdAt: serverTimestamp()
+          transaction.set(leaderboardRef, {
+            articleId: session.articleId,
+            set: session.set,
+            displayName: session.nickname,
+            points: responseData.points,
+            score: responseData.score,
+            nickname: session.nickname,
+            createdAt: serverTimestamp()
+          });
         });
-      });
+      } catch (finalizeError) {
+        console.error("Quiz response saved, but participant/leaderboard finalization failed:", {
+          code: finalizeError?.code || "unknown",
+          message: finalizeError?.message || String(finalizeError)
+        });
+      }
 
       playSound("complete.mp3");
       showConfetti();
