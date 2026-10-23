@@ -1026,30 +1026,32 @@ if (
 
       if (!message || !button) return;
 
-    function unlockGamePage() {
-  const currentPage = pages[currentPageIndex];
-  if (!currentPage) return;
+ function unlockGamePage(gameContainer) {
+  const gamePosition = Number(gameContainer?.dataset?.gamePosition);
 
-  const gameContainers = document.querySelectorAll(
-    `.interactive-game[data-game-position="${currentPage.gamePosition}"]`
-  );
-
-  // Huwag mag-unlock hangga't may game na hindi pa tapos.
-  const allGamesCompleted = Array.from(gameContainers).every(
-    (container) => container.dataset.gameComplete === "true"
-  );
-
-  if (!allGamesCompleted) {
+  if (!Number.isFinite(gamePosition)) {
+    console.error("Invalid game position:", gameContainer?.dataset?.gamePosition);
     return;
   }
 
-  // Lahat ng games sa page ay solved na.
-  const nextButton = document.getElementById("next-page-btn");
+  const gameContainers = document.querySelectorAll(
+    `.interactive-game[data-game-position="${gamePosition}"]`
+  );
+
+  if (gameContainers.length === 0) return;
+
+  const allGamesCompleted = Array.from(gameContainers).every(
+    container => container.dataset.gameComplete === "true"
+  );
+
+  if (!allGamesCompleted) return;
+
+  const nextButton = document.getElementById("book-next");
+
   if (nextButton) {
     nextButton.disabled = false;
   }
 }
-
     
 function markGameCorrect() {
   const gameBox = gameContainer.querySelector(".game-box");
