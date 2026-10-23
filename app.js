@@ -15,6 +15,7 @@
     orderBy,
     limit,
     runTransaction,
+    setDoc,
     serverTimestamp
   } = firebase;
 
@@ -2050,6 +2051,11 @@
       const responseRef = doc(db, "responses", session.nicknameKey);
       const leaderboardRef = doc(db, "leaderboards", session.articleId, "entries", session.nicknameKey);
 
+      // Save the quiz answers first so a separate participant/leaderboard
+      // permission failure cannot silently discard the actual quiz response.
+      // This remains an official response only; Test Mode exits above.
+      await setDoc(responseRef, responseData);
+
       await runTransaction(db, async transaction => {
         const participantSnapshot = await transaction.get(participantRef);
 
@@ -2058,7 +2064,6 @@
         }
         if (!participantSnapshot.exists()) throw new Error("PARTICIPANT_NOT_FOUND");
 
-        transaction.set(responseRef, responseData);
         transaction.set(participantRef, {
           nickname: session.nickname,
           nicknameKey: session.nicknameKey,
@@ -2108,8 +2113,16 @@
         return;
       }
 
+      const errorCode = error?.code || "unknown";
+      const errorMessage = String(error?.message || "Unknown Firebase error");
+      console.error("Quiz submission failed details:", { code: errorCode, message: errorMessage });
+
       message.innerHTML = setMessage(
-        "Your response could not be submitted. Please try again."
+        errorCode === "permission-denied"
+          ? "Firebase denied permission to save or finalize this response. Check Firestore Rules for responses, participants, and leaderboards. See the browser Console for details."
+          : errorCode === "unavailable"
+            ? "Firebase is temporarily unavailable. Your quiz response may already be saved; please retry or contact the researcher before starting another attempt."
+            : "Submission failed (" + escapeHTML(errorCode) + "). " + escapeHTML(errorMessage)
       );
     }
   }
