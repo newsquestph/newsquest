@@ -1400,8 +1400,11 @@
     /* JUMBLED WORDS: tap letters in spelling order */
 
     if (game.type === "jumbled") {
-      const letters = Array.from(String(game.scrambled || game.answer || "").replace(/\s/g, ""));
-      const answerLength = Array.from(String(game.answer || "").replace(/\s/g, "")).length;
+      const answerLetters = Array.from(String(game.answer || "").replace(/\s/g, ""));
+      const letters = game.scrambled
+        ? Array.from(String(game.scrambled).replace(/\s/g, ""))
+        : answerLetters.slice().sort(() => Math.random() - 0.5);
+      const answerLength = answerLetters.length;
       return `
         <div class="game-box nq-tile-puzzle">
           <div class="eyebrow">Interactive Game</div>
@@ -1427,6 +1430,7 @@
       const images = Array.isArray(game.images)
         ? game.images.slice(0, 4)
         : [];
+      const fourPicsLetters = Array.from(String(game.answer || "").replace(/\s/g, "")).sort(() => Math.random() - 0.5);
 
       return `
         <div class="game-box">
