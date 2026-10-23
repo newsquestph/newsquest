@@ -139,7 +139,7 @@
           text: "What determines which article a respondent sees?",
           choices: [
             "A dropdown menu",
-            "The respondent code",
+            "Random assignment",
             "The respondent's score",
             "The time of day"
           ],
