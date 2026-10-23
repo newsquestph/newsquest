@@ -520,13 +520,9 @@
         return;
       }
 
-      const existing = participantSnapshot.exists() ? participantSnapshot.data() : null;
-      if (existing && existing.articleId) {
-        // An unfinished participant must continue the article already assigned to them.
-        await renderArticleSelection(nickname, "official", [existing.articleId]);
-      } else {
-        await renderArticleSelection(nickname, "official", ["article1", "article2", "article3"]);
-      }
+      // Let every unfinished nickname choose an article. The chosen article is
+      // saved when they press "Start selected article"; completed nicknames stay blocked.
+      await renderArticleSelection(nickname, "official", ["article1", "article2", "article3"]);
     } catch (error) {
       console.error("Nickname check failed:", error);
       if (message) message.innerHTML = setMessage("Something went wrong while checking this nickname. Please try again.");
@@ -685,19 +681,13 @@
           throw new Error("NICKNAME_ALREADY_USED");
         }
 
-        if (participantSnapshot.exists()) {
-          const existing = participantSnapshot.data();
-          if (existing.articleId && existing.set) {
-            assignment = { articleId: existing.articleId, set: existing.set };
-            return;
-          }
-        }
-
         const set = Number(String(selectedArticleId).replace("article", ""));
         if (![1, 2, 3].includes(set) || selectedArticleId !== `article${set}`) {
           throw new Error("INVALID_ARTICLE_SELECTION");
         }
 
+        // Honor the participant's current selection instead of reusing an older
+        // unfinished/random assignment.
         assignment = { articleId: selectedArticleId, set };
         transaction.set(participantRef, {
           nickname,
